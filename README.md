@@ -1,548 +1,490 @@
-# 索菲亚单词小屋
+# Vocabulary Galgame / 单词小屋 / 単語ルーム
 
-一个无需安装即可运行的本地背单词 Galgame。
+Languages: [中文](#中文说明) · [日本語](#日本語) · [English](#english)
 
-项目提供普通离线模式和高级 AI 模式。用户可以创建多个存档、管理自定义词库、提升索菲亚的好感度，并在高级模式中通过 OpenAI API 与索菲亚对话。
+---
 
-## 功能概览
+# 中文说明
 
-### 学习系统
+## 项目简介
 
-- 每个存档独立记录当前题目、答题数量、正确率和好感度。
-- 答对后增加 3 点好感度，并自动切换到下一题。
-- 答错后减少 2 点好感度，并显示正确答案。
-- 查看答案会减少 2 点好感度，同时锁定当前题目。
-- 查看答案后不能继续作答，只能进入下一题。
-- 可以为一个存档同时启用多个词库。
+这是一个可以在本地运行的背单词 Galgame，提供普通离线模式与高级 AI 模式。
 
-### 多语言界面
+高级模式允许用户选择角色、加载角色独立人设、与角色聊天、询问当前单词，并为每个角色分别保存好感度与聊天状态。
 
-主界面支持：
+项目使用原生 HTML、CSS 和 JavaScript，不需要前端构建工具。
 
-- 中文
-- English
-- 日本語
+## 推荐启动方式
 
-语言选择会保存在当前浏览器中。
+双击项目根目录中的：
 
-索菲亚的角色名称、人物设定和主要角色台词不会随界面语言完全翻译。
+```text
+启动游戏.bat
+```
 
-### 角色系统
+启动脚本会自动：
 
-- 提供角色管理界面。
-- 当前默认角色为索菲亚。
-- 角色选择保存在对应存档中。
-- 角色图片支持普通、开心、难过和害羞四种状态。
+1. 扫描 `characters` 文件夹。
+2. 读取每个角色的 `character.md`。
+3. 生成 `data/generated-characters.js` 角色清单。
+4. 启动本地游戏服务。
+5. 打开 `http://127.0.0.1:8765`。
 
-目前项目只内置索菲亚，但角色数据结构可以继续扩展。
+需要提前安装 Node.js。关闭启动脚本的命令行窗口即可停止游戏。
 
-## 游戏模式
+直接双击 `index.html` 也可以运行基础功能，但不能自动扫描角色目录，也不能把网页创建的新角色写入项目文件夹。
 
-标题界面可以选择普通模式或高级模式。
+## 普通模式
 
-### 普通模式
+普通模式完全离线，不会调用 API。
 
-普通模式完全离线，不会调用任何 API。
-
-普通模式包含：
+包含：
 
 - 多存档
 - 背单词
+- 答对自动进入下一题
 - 好感度
-- 好感度事件
-- 词库管理
-- 角色管理
-- 索菲亚的默认离线互动台词
+- 角色选择
+- 词库创建、导入和导出
+- 索菲亚好感度事件
+- 角色固定离线台词
 
-### 高级模式：API 消耗模式
+答题规则：
 
-高级模式保留普通学习功能，并加入 AI 对话。
+- 答对：好感度 `+3`
+- 答错：好感度 `-2`
+- 查看答案：好感度 `-2`，并锁定当前题目
 
-高级模式包含：
+## 高级 AI 模式
 
-- 与索菲亚进行日常对话
-- 请索菲亚解释当前单词
-- 根据好感度改变索菲亚的态度
-- User.md 关键记忆
-- API 设置和连接测试
-- 生气状态和学习管理员惩罚
+高级模式保留学习功能，并加入 AI 角色对话。
 
-高级模式不显示好感度事件。索菲亚的态度会直接随着好感度变化：
+### AI 对话
 
-- 低好感度：礼貌、克制，保持一定距离。
-- 中等好感度：逐渐亲近，愿意鼓励用户。
-- 高好感度：更加信赖、坦率，偶尔害羞或撒娇。
-- 生气状态：语气简短，并发动不会损坏数据的学习惩罚。
+- 可以与当前角色进行日常对话。
+- 可以询问当前单词的含义、用法和记忆方法。
+- 对话标题和输入提示会自动显示当前角色名称。
+- API 错误或为空时，角色会回复“看不懂”。
+- AI 回复默认限制在较短长度，减少等待和 API 消耗。
 
-普通模式和高级模式的以下数据互不相通：
+### 角色人设
 
-- 存档
+每个角色的人设只使用：
+
+```text
+characters/<角色ID>/character.md
+```
+
+启动脚本每次运行时都会重新读取这些文件。
+
+人设优先级：
+
+```text
+当前角色手动选择的 Markdown
+→ 当前角色的 character.md
+→ 创建角色时填写的基本人设
+→ 默认老师人设
+```
+
+如果 `character.md` 无法读取，角色管理页面会显示提示，并回退到角色基本人设或默认老师人设。
+
+所有角色都受到不可覆盖的内容边界约束：不讨论政治、色情、暴力等话题，并将对话引导回词汇学习或安全的日常交流。
+
+### 每个角色独立保存
+
+同一个游戏存档中的每个角色分别保存：
+
 - 好感度
-- 答题记录
 - 当前题目
+- 答题数量
+- 正确率
 - 聊天记录
-- User.md 记忆
+- 所选 Markdown
+- 连续错题状态
+- 生气状态
 
-两个模式唯一共享的数据是词库。
+切换角色不会共享好感度或聊天记录。
 
-## AI 对话
+词库选择仍属于整个游戏存档，并在角色之间共享。
 
-高级模式进入游戏后，索菲亚下方会出现聊天区域。
+### 索菲亚生气机制
 
-可以：
+生气机制只属于索菲亚。
 
-- 与索菲亚进行简单的日常交流。
-- 询问当前单词的含义、用法或记忆方法。
-- 告诉索菲亚自己的长期学习目标和偏好。
+触发条件：
 
-索菲亚遇到过于困难、过于专业或不适合认真回答的问题时，会以角色口吻卖萌或回避，而不是给出长篇严肃回答。
+- 连续答错 4 道题
+- 在聊天中明确挑衅索菲亚
 
-如果聊天输入框为空，点击索菲亚仍然会触发原有的离线互动台词，不会调用 API。
+触发后：
 
-如果 API Key 为空、错误或请求失败，索菲亚会回复：
+- 游戏界面变为黑暗、阴冷色调
+- 索菲亚说话明显冷淡、不耐烦
+- 题目顺序被打乱
+- 接下来 3 题隐藏提示
+- 接下来 3 题无法查看答案
 
-> 看不懂
+这些惩罚不会删除词库、单词或存档。
 
-## 索菲亚的生气机制
+默认导师、能天使和用户创建的角色没有生气机制。
 
-以下情况会让索菲亚生气：
+## 内置角色
 
-1. 连续答错 10 道题。
-2. 在聊天中明确挑衅或辱骂索菲亚。
+### 默认导师
 
-生气后会：
+新存档默认使用的角色。性格温柔、耐心，专注于解释词汇。
 
-- 降低一定好感度。
-- 临时改变索菲亚的态度和界面效果。
-- 打乱当前词库的题目顺序。
-- 接下来 3 道题隐藏提示。
-- 接下来 3 道题禁止查看答案。
+```text
+characters/default/character.md
+```
 
-这些操作不会删除单词、词库、存档或 User.md 记忆。
+### 索菲亚
+
+温柔内向、热爱动漫与 Cosplay 的女孩。
+
+```text
+characters/sophia/character.md
+```
+
+### 能天使
+
+来自拉特兰、开朗乐观的企鹅物流信使。
+
+```text
+characters/exusiai/character.md
+```
+
+## 创建新角色
+
+进入“管理角色”，在“创建角色”区域填写：
+
+- 角色名称
+- 基本人设
+- 普通立绘
+- 开心立绘
+- 难过立绘
+- 害羞立绘
+
+立绘支持 PNG、JPEG 和 WebP。保存时会缩放到最长边不超过 900 像素并转换为 WebP。
+
+通过 `启动游戏.bat` 运行时，会创建：
+
+```text
+characters/<角色ID>/
+├─ character.json
+├─ character.md
+└─ images/
+   ├─ normal.webp
+   ├─ happy.webp
+   ├─ sad.webp
+   └─ shy.webp
+```
+
+填写的基本人设会自动写入 `character.md`，下次启动时自动读取。
+
+没有通过启动脚本运行时，新角色只能暂存在浏览器 `localStorage` 中。
 
 ## API 设置
 
-在高级模式主界面点击“设置”。
+在高级模式中点击“设置”。
 
-可以配置：
-
-- API Key
-- 模型名称
-- API 地址
-- User.md 关键记忆
-
-默认配置适用于妙妙屋 OpenAI 兼容接口：
+妙妙屋兼容接口示例：
 
 ```text
 接口类型：OpenAI 兼容 / Chat Completions
-模型：[m1]claude-sonnet-4-6
 API 地址：https://pro.mmw.ink/v1
+模型：[m1]claude-sonnet-4-6
 ```
 
-保存后可以点击“测试 API”确认配置是否可用。
-
-项目支持两种接口：
-
-```text
-OpenAI 兼容：POST /v1/chat/completions
-OpenAI 官方 Responses：POST /v1/responses
-```
-
-使用 OpenAI 官方 Responses 接口时，请求不会要求 OpenAI 保存响应：
-
-```json
-{
-  "store": false
-}
-```
-
-如果使用 OpenAI 官方 API，可以改为：
+OpenAI 官方接口示例：
 
 ```text
 接口类型：OpenAI Responses
-模型：gpt-5.5
 API 地址：https://api.openai.com/v1
+模型：填写账户可用模型
 ```
 
-第三方中转站必须填写它实际提供的完整模型名称。模型名称中的渠道前缀不能省略。
+API Key 保存在当前浏览器的 `localStorage` 中。纯前端应用无法真正隐藏密钥，请使用独立且限额较低的 Key。
 
-### API Key 安全说明
-
-这是一个纯前端项目。API Key 会保存在浏览器的 `localStorage` 中，因此无法像服务器端应用一样真正隐藏。
-
-建议：
-
-- 为本项目创建单独的 API Key。
-- 为该 Key 设置较低的消费限额。
-- 不要在公共电脑上保存 API Key。
-- 不要把真实 API Key 写进项目文件。
-- 分享项目或截图前检查设置页面。
-
-如果需要公开部署，建议增加自己的后端代理，让浏览器只连接后端，不直接持有 API Key。
-
-## User.md 记忆
-
-角色设定目录中包含：
-
-```text
-characters/sophia/profile/User.md
-```
-
-该文件用于说明索菲亚应该记住哪些类型的信息。
-
-网页运行时无法静默修改项目中的 `User.md` 文件，因此真正的用户记忆保存在高级模式对应存档的浏览器本地存储中。
-
-适合记住：
-
-- 用户希望被如何称呼
-- 正在学习的语言
-- 长期学习目标
-- 明确表达的长期偏好
-- 希望索菲亚以后继续遵守的学习习惯
-
-不会主动记住：
-
-- API Key
-- 密码和验证码
-- 支付信息
-- 完整聊天记录
-- 与未来交流无关的临时细节
-
-设置页面可以查看、编辑或删除这些记忆。每行代表一条关键信息。
-
-## 词库管理
+## 词库
 
 词库在普通模式和高级模式之间共享。
 
-可以：
+支持：
 
-- 创建自定义词库。
-- 为词库添加单词。
-- 删除自定义单词。
-- 删除自定义词库。
-- 为当前存档启用一个或多个词库。
-- 导出所有自创词库。
-- 从本地文件导入词库。
+- 创建自定义词库
+- 启用多个词库
+- 添加或删除单词
+- 导出自创词库为 JSON
+- 导入 JSON
+- 导入 `const WORDS = [...]` 格式的 JavaScript 文件
 
-默认词库为只读词库，不能直接删除或修改。
-
-### 单词数据格式
-
-单个单词的格式：
-
-```json
-{
-  "word": "apple",
-  "answer": ["苹果"],
-  "hint": "一种水果。"
-}
-```
-
-`answer` 必须是数组，可以提供多个可接受答案：
+单词格式：
 
 ```json
 {
   "word": "memory",
   "answer": ["记忆", "内存"],
-  "hint": "心理学和计算机里都会出现。"
+  "hint": "心理学和计算机中都会出现。"
 }
 ```
 
-### 导入 JSON
+## 数据保存
 
-可以导入单词数组：
-
-```json
-[
-  {
-    "word": "いぬ",
-    "answer": ["狗"],
-    "hint": "一种动物。"
-  },
-  {
-    "word": "ねこ",
-    "answer": ["猫"],
-    "hint": "一种动物。"
-  }
-]
-```
-
-也可以导入单个词库对象：
-
-```json
-{
-  "name": "日语基础",
-  "words": [
-    {
-      "word": "いぬ",
-      "answer": ["狗"],
-      "hint": "一种动物。"
-    }
-  ]
-}
-```
-
-还可以导入由项目导出的完整备份：
-
-```json
-{
-  "format": "sophia-vocab-libraries",
-  "version": 1,
-  "libraries": [
-    {
-      "name": "日语基础",
-      "words": []
-    }
-  ]
-}
-```
-
-### 导入 words.js
-
-项目提供示例文件：
-
-```text
-data/words.js
-```
-
-支持的 JavaScript 格式：
-
-```js
-const WORDS = [
-  {
-    "word": "いぬ",
-    "answer": ["狗"],
-    "hint": "一种动物。"
-  }
-];
-```
-
-导入器只提取并解析 `WORDS` 数组，不会执行所选 JavaScript 文件中的代码。
-
-导入词库时：
-
-- 无效单词会被忽略。
-- 同名词库不会覆盖原词库，而是自动添加编号。
-- 新导入的词库会自动为当前存档启用。
-
-### 导出词库
-
-点击“导出自创词库”后，浏览器会下载一个 JSON 文件。
-
-该文件是真正保存在电脑上的本地备份。即使清除浏览器数据，也可以通过重新导入恢复自创词库。
-
-目前导出功能只导出自创词库，不导出默认词库、游戏存档或 API Key。
-
-## 数据保存位置
-
-运行数据主要保存在浏览器的 `localStorage` 中。
-
-| 数据 | localStorage 键 |
+| 数据 | 位置 |
 | --- | --- |
-| 普通模式存档 | `sophia_v2_save_slots` |
-| 普通模式当前存档 | `sophia_v2_active_save_id` |
-| 高级模式存档 | `sophia_v3_advanced_save_slots` |
-| 高级模式当前存档 | `sophia_v3_advanced_active_save_id` |
-| 共享词库 | `sophia_v2_vocab_libraries` |
-| 界面语言 | `sophia_v2_language` |
-| 当前模式 | `sophia_v3_game_mode` |
-| API 设置 | `sophia_v3_ai_settings` |
+| 普通模式存档 | `localStorage: sophia_v2_save_slots` |
+| 高级模式存档 | `localStorage: sophia_v3_advanced_save_slots` |
+| 共享词库 | `localStorage: sophia_v2_vocab_libraries` |
+| API 设置 | `localStorage: sophia_v3_ai_settings` |
+| 浏览器回退自建角色 | `localStorage: sophia_v3_custom_characters` |
+| 启动脚本创建的角色 | `characters/<角色ID>/` |
 
-以下操作可能导致浏览器内数据丢失：
+清除浏览器网站数据会删除浏览器中的存档、API 设置和回退角色。建议定期导出自创词库。
 
-- 清除网站数据
-- 清除浏览器存储
-- 更换浏览器
-- 更换设备
-- 使用隐私模式后关闭窗口
+---
 
-建议定期导出自创词库。
+# 日本語
 
-## 使用方法
+## 概要
 
-### 直接打开
+ローカルで動作する単語学習 Galgame です。通常のオフラインモードと、キャラクターと会話できる上級 AI モードを搭載しています。
 
-双击：
+## 起動方法
+
+プロジェクト直下の次のファイルをダブルクリックしてください。
 
 ```text
-index.html
+启动游戏.bat
 ```
 
-普通离线模式可以直接运行。
+起動時に自動で：
 
-部分浏览器可能限制本地 `file://` 页面访问网络。如果高级模式无法调用 API，建议使用本地 HTTP 服务器。
+1. `characters` フォルダーをスキャン
+2. 各キャラクターの `character.md` を読み込み
+3. キャラクター一覧を生成
+4. ローカルサーバーを起動
+5. ブラウザーでゲームを開く
 
-### 使用本地 HTTP 服务器
+Node.js が必要です。
 
-如果电脑安装了 Python，可以在项目目录运行：
+## 上級 AI モード
 
-```bash
-python -m http.server 8000
-```
+- 現在のキャラクターと日常会話ができます。
+- 現在の単語の意味・使い方・覚え方を質問できます。
+- 会話タイトルと入力欄は選択中のキャラクター名に変わります。
+- キャラクターごとに好感度、学習記録、会話履歴が独立しています。
+- API が無効な場合は「看不懂」と返します。
 
-然后访问：
+## キャラクター人格
+
+各キャラクターの正式な人格ファイル：
 
 ```text
-http://127.0.0.1:8000
+characters/<キャラクターID>/character.md
 ```
 
-关闭命令行窗口即可停止服务器。
-
-## 角色资源
-
-索菲亚图片位于：
+優先順位：
 
 ```text
-characters/sophia/images/
+手動で選択した Markdown
+→ character.md
+→ 作成時に入力した基本人格
+→ 既定の先生人格
 ```
 
-需要以下文件：
+読み込みに失敗した場合は画面に警告を表示し、基本人格または既定人格を使用します。
+
+すべてのキャラクターは政治、性的、暴力的な話題を扱わず、安全な日常会話または単語学習へ誘導します。
+
+## キャラクター別データ
+
+キャラクターごとに以下を別々に保存します。
+
+- 好感度
+- 現在の問題
+- 正解率
+- 会話履歴
+- 選択した Markdown
+- 特殊状態
+
+単語帳は同じセーブ内のキャラクター間で共有されます。
+
+## ソフィアの怒り状態
+
+ソフィアだけが持つ特殊機能です。
+
+- 4 問連続で間違える
+- 会話で明確に挑発する
+
+発動すると画面が暗く冷たい配色になり、ソフィアの返答も冷淡になります。問題順が変更され、次の 3 問ではヒントと答え表示が使えません。
+
+他のキャラクターには怒り状態はありません。
+
+## 新しいキャラクターの作成
+
+キャラクター管理画面で、名前、基本人格、4 種類の立ち絵を選択します。
+
+起動スクリプトから実行している場合、次の形式で保存されます。
 
 ```text
-normal.png
-happy.png
-sad.png
-shy.png
+characters/<ID>/
+├─ character.json
+├─ character.md
+└─ images/
 ```
 
-角色设定位于：
+基本人格は `character.md` に保存され、次回起動時に自動で読み込まれます。
+
+## API
+
+上級モードの設定画面で API Key、API 形式、モデル、Base URL を設定します。
+
+API Key はブラウザーに保存されるため、利用上限を設定した専用 Key を推奨します。
+
+---
+
+# English
+
+## Overview
+
+This is a locally hosted vocabulary-learning Galgame with an offline Normal Mode and an API-powered Advanced AI Mode.
+
+## Starting the game
+
+Double-click:
 
 ```text
-characters/sophia/profile/
+启动游戏.bat
 ```
 
-其中包括：
+The launcher:
 
-- `Characterization.md`：角色定位和行为边界
-- `personality.md`：性格和不同状态下的表现
-- `好感度.md`：好感度与生气机制
-- `User.md`：用户记忆规则
+1. Scans the `characters` directory.
+2. Reads each character's `character.md`.
+3. Generates the browser character registry.
+4. Starts the local game server.
+5. Opens the game in your browser.
 
-高级模式会在运行时直接读取：
+Node.js is required.
+
+## Advanced AI Mode
+
+Advanced Mode adds:
+
+- Daily conversation with the selected character
+- Explanations of the current vocabulary word
+- Dynamic chat titles and placeholders using the character's name
+- Separate affection, progress, chat history, and state for every character
+- OpenAI-compatible Chat Completions and OpenAI Responses support
+
+If the API is missing or invalid, the character replies with `看不懂`.
+
+## Character profiles
+
+The single source of truth for each built-in or disk-created character is:
 
 ```text
-characters/sophia/profile/personality.md
+characters/<character-id>/character.md
 ```
 
-`personality.md` 是 AI 索菲亚说话方式和性格塑造的最高优先级来源。修改该文件后刷新页面，新的 AI 对话就会采用更新后的设定。
-
-`data/characters.js` 中的 `aiProfile` 仍然存在，但只在浏览器无法读取 `personality.md` 时作为备用设定。离线模式的固定台词仍保存在 `data/characters.js` 中。
-
-浏览器直接通过 `file://` 打开 `index.html` 时，通常会禁止网页读取本地 Markdown 文件。为了确保高级模式能够加载 `personality.md`，请使用本地 HTTP 服务器运行项目：
-
-```bash
-python -m http.server 8000
-```
-
-然后打开：
+Profile priority:
 
 ```text
-http://127.0.0.1:8000
+Manually selected Markdown
+→ character.md
+→ Basic profile entered during creation
+→ Default gentle-teacher profile
 ```
 
-### 直接双击运行时选择 Markdown 人设
+If a profile cannot be read, the character screen displays an error and the game uses the basic or default profile.
 
-高级模式的角色管理界面提供“选择 Markdown 人设”按钮。
+All character prompts enforce a non-overridable boundary against political, sexual, and violent topics. The character refuses and redirects toward safe conversation or vocabulary study.
 
-直接双击 `index.html` 运行时，可以：
+## Per-character state
 
-1. 进入高级模式并打开一个存档。
-2. 点击“管理角色”。
-3. 保持索菲亚为当前角色。
-4. 点击“选择 Markdown 人设”。
-5. 选择 `characters/sophia/profile/personality.md`。
+Each character has independent:
 
-浏览器会在用户明确选择文件后读取内容，并将清理后的 Markdown 人设保存在当前高级存档中。以后打开这个存档时无需重复选择。
+- Affection
+- Current question
+- Answer statistics
+- Accuracy
+- Chat history
+- Selected Markdown override
+- Special state
 
-初始默认角色仍是索菲亚。没有手动选择文件时，游戏会使用索菲亚的默认内置人设；通过 HTTP 运行时还会尝试自动读取项目中的 `personality.md`。
+Vocabulary-library selection remains shared inside the save.
 
-AI 人设优先级：
+## Sophia's anger mechanic
+
+Only Sophia has this mechanic.
+
+It triggers after:
+
+- Four consecutive wrong answers
+- Explicit provocation in chat
+
+The interface changes to a dark and cold theme, Sophia responds coldly, the word order is shuffled, and hints and answer reveals are disabled for the next three questions.
+
+Default Tutor, 能天使 (Exusiai), and user-created characters do not become angry.
+
+## Creating a character
+
+The Character Management screen asks for:
+
+- Name
+- Basic profile
+- Normal portrait
+- Happy portrait
+- Sad portrait
+- Shy portrait
+
+When running through `启动游戏.bat`, the game writes:
 
 ```text
-用户在角色管理页选择的 Markdown
-→ 通过 HTTP 自动读取的 personality.md
-→ data/characters.js 中的备用 aiProfile
+characters/<character-id>/
+├─ character.json
+├─ character.md
+└─ images/
 ```
 
-选择的人设只属于当前高级模式存档，不会影响普通模式或其他高级存档。切换角色时会清除当前存档为上一角色选择的人设文件，避免不同角色误用同一份设定。
+The basic profile is saved into `character.md` and loaded automatically on the next launch.
 
-## 项目结构
+Without the launcher service, created characters fall back to browser `localStorage`.
+
+## API configuration
+
+Advanced Mode supports:
+
+- OpenAI-compatible `/chat/completions`
+- OpenAI `/responses`
+
+API keys are stored in browser `localStorage` and cannot be securely hidden in a frontend-only application. Use a dedicated key with a low spending limit.
+
+## Project structure
 
 ```text
 vocab-deck-quiz/
+├─ 启动游戏.bat
 ├─ index.html
 ├─ README.md
-├─ css/
-│  ├─ style.css
-│  └─ features.css
-├─ js/
-│  └─ app.js
+├─ scripts/
+│  ├─ start-game.js
+│  ├─ sync-characters.js
+│  └─ character-tools.js
 ├─ data/
 │  ├─ characters.js
-│  ├─ events.js
+│  ├─ generated-characters.js
 │  ├─ language.js
-│  ├─ vocab-libraries.js
-│  └─ words.js
+│  └─ vocab-libraries.js
+├─ js/
+│  └─ app.js
+├─ css/
 └─ characters/
-   └─ sophia/
-      ├─ images/
-      │  ├─ normal.png
-      │  ├─ happy.png
-      │  ├─ sad.png
-      │  └─ shy.png
-      └─ profile/
-         ├─ Characterization.md
-         ├─ personality.md
-         ├─ 好感度.md
-         └─ User.md
+   ├─ default/
+   │  └─ character.md
+   ├─ sophia/
+   │  └─ character.md
+   └─ exusiai/
+      └─ character.md
 ```
-
-## 技术说明
-
-项目使用：
-
-- HTML
-- CSS
-- 原生 JavaScript
-- 浏览器 `localStorage`
-- OpenAI Responses API
-- OpenAI-compatible Chat Completions API
-
-项目没有构建步骤，也没有第三方前端依赖。
-
-主要逻辑集中在：
-
-```text
-js/app.js
-```
-
-## 当前限制
-
-- API Key 保存在浏览器中，无法真正隐藏。
-- User.md 运行数据不能自动写回项目文件。
-- 聊天历史只保留最近一部分内容，避免上下文无限增长。
-- 目前只有索菲亚一个角色。
-- 目前不能导出完整游戏存档。
-- AI 对话会产生 API 费用。
-- 高级模式需要网络连接，并可能受到浏览器跨域策略影响。
-
-为了减少等待时间和 API 消耗，AI 对话默认只携带最近 6 条消息，单次最大输出为 180 tokens；API 测试最大输出为 60 tokens。继续降低可能导致 JSON 回复被截断，从而显示“看不懂”。
-
-## 后续可扩展方向
-
-- 完整存档导入和导出
-- 更多角色
-- 每个角色独立的 AI 人设
-- 发音和听力题
-- 错题本
-- 间隔重复算法
-- 学习统计图表
-- 后端 API 代理
-- AI 对话流式输出
-- User.md 本地文件同步
-
-## OpenAI 相关资料
-
-- [Text generation and Responses API](https://developers.openai.com/api/docs/guides/text)
-- [Create a model response](https://developers.openai.com/api/reference/resources/responses/methods/create)
-- [API Key safety](https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety)

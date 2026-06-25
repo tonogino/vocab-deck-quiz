@@ -7,7 +7,7 @@ const LANGUAGE_KEY = "sophia_v2_language";
 const DATA_VERSION_KEY = "sophia_v2_data_version";
 const GAME_MODE_KEY = "sophia_v3_game_mode";
 const AI_SETTINGS_KEY = "sophia_v3_ai_settings";
-const SOPHIA_PERSONALITY_PATH = "./characters/sophia/profile/personality.md";
+const CUSTOM_CHARACTERS_KEY = "sophia_v3_custom_characters";
 
 const state = {
   activeSaveId: null,
@@ -19,9 +19,7 @@ const state = {
   questionLocked: false,
   advancing: false,
   advanceTimer: null,
-  aiBusy: false,
-  sophiaPersonality: "",
-  personalityLoadAttempted: false
+  aiBusy: false
 };
 
 const $ = id => document.getElementById(id);
@@ -39,7 +37,7 @@ const el = {
   submitBtn: $("submitBtn"), showAnswerBtn: $("showAnswerBtn"), nextBtn: $("nextBtn"),
   feedbackText: $("feedbackText"), characterImage: $("characterImage"), speakerName: $("speakerName"),
   dialogueText: $("dialogueText"), closeLibraryBtn: $("closeLibraryBtn"), librarySelectList: $("librarySelectList"),
-  aiChatPanel: $("aiChatPanel"), aiChatLog: $("aiChatLog"), aiChatInput: $("aiChatInput"),
+  aiChatPanel: $("aiChatPanel"), aiChatTitle: $("aiChatTitle"), aiChatLog: $("aiChatLog"), aiChatInput: $("aiChatInput"),
   aiSendBtn: $("aiSendBtn"), aiStatusText: $("aiStatusText"),
   libraryHint: $("libraryHint"), newLibraryNameInput: $("newLibraryNameInput"), createLibraryBtn: $("createLibraryBtn"),
   wordLibrarySelect: $("wordLibrarySelect"), newWordInput: $("newWordInput"), newAnswerInput: $("newAnswerInput"),
@@ -60,8 +58,12 @@ const el = {
   closeSettingsBtn: $("closeSettingsBtn"), apiKeyInput: $("apiKeyInput"), apiTypeSelect: $("apiTypeSelect"),
   apiModelInput: $("apiModelInput"),
   apiBaseUrlInput: $("apiBaseUrlInput"), saveApiSettingsBtn: $("saveApiSettingsBtn"), testApiBtn: $("testApiBtn"),
-  apiTestStatus: $("apiTestStatus"), userMemoryInput: $("userMemoryInput"),
-  saveUserMemoryBtn: $("saveUserMemoryBtn"), clearChatBtn: $("clearChatBtn")
+  apiTestStatus: $("apiTestStatus"), clearChatBtn: $("clearChatBtn"),
+  customCharacterNameInput: $("customCharacterNameInput"),
+  customCharacterProfileInput: $("customCharacterProfileInput"),
+  customNormalImageInput: $("customNormalImageInput"), customHappyImageInput: $("customHappyImageInput"),
+  customSadImageInput: $("customSadImageInput"), customShyImageInput: $("customShyImageInput"),
+  createCharacterBtn: $("createCharacterBtn"), createCharacterStatus: $("createCharacterStatus")
 };
 
 function createId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`; }
@@ -109,11 +111,65 @@ function removeLibraryFromAllSaves(libraryId) {
   });
 }
 function getActiveSave() { return loadSaveSlots().find(save => save.id === state.activeSaveId) || null; }
+function createCharacterState() {
+  return {
+    affection: 0,
+    currentIndex: 0,
+    totalAnswered: 0,
+    correctAnswered: 0,
+    finishedEvents: [],
+    wrongStreak: 0,
+    angerPenaltyQuestions: 0,
+    angryUntil: 0,
+    shuffleSeed: null,
+    chatHistory: [],
+    personalityProfile: null
+  };
+}
+function characterStateFields() { return Object.keys(createCharacterState()); }
+function ensureCharacterStates(save) {
+  const characterId = save.characterId || "default";
+  const characterStates = { ...(save.characterStates || {}) };
+  if (!characterStates[characterId]) {
+    const stateData = createCharacterState();
+    characterStateFields().forEach(field => {
+      if (save[field] !== undefined) stateData[field] = save[field];
+    });
+    characterStates[characterId] = stateData;
+  }
+  return { ...save, characterId, characterStates };
+}
+function snapshotActiveCharacterState(save) {
+  const migrated = ensureCharacterStates(save);
+  const characterData = {};
+  characterStateFields().forEach(field => { characterData[field] = migrated[field]; });
+  return {
+    ...migrated,
+    characterStates: {
+      ...migrated.characterStates,
+      [migrated.characterId]: characterData
+    }
+  };
+}
+function activateCharacterState(save, characterId) {
+  const stored = snapshotActiveCharacterState(save);
+  const characterData = stored.characterStates[characterId] || createCharacterState();
+  return {
+    ...stored,
+    ...characterData,
+    characterId,
+    characterStates: {
+      ...stored.characterStates,
+      [characterId]: characterData
+    }
+  };
+}
 function updateActiveSave(updater) {
   const saves = loadSaveSlots();
   const index = saves.findIndex(save => save.id === state.activeSaveId);
   if (index < 0) return null;
-  saves[index] = updater({ ...saves[index] });
+  const updated = updater({ ...ensureCharacterStates(saves[index]) });
+  saves[index] = snapshotActiveCharacterState(updated);
   saveSaveSlots(saves);
   return saves[index];
 }
@@ -141,6 +197,28 @@ function loadAiSettings() {
 function saveAiSettings(settings) {
   localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
 }
+function loadCustomCharacters() {
+  const characters = safeParse(localStorage.getItem(CUSTOM_CHARACTERS_KEY), []);
+  return Array.isArray(characters) ? characters : [];
+}
+function saveCustomCharacters(characters) {
+  localStorage.setItem(CUSTOM_CHARACTERS_KEY, JSON.stringify(characters));
+}
+function getAllCharacters() {
+  const characters = new Map(Object.values(CHARACTERS).map(character => [character.id, character]));
+  loadCustomCharacters().forEach(character => {
+    if (!characters.has(character.id)) characters.set(character.id, character);
+  });
+  return [...characters.values()];
+}
+function findCharacter(characterId) {
+  return CHARACTERS[characterId] || loadCustomCharacters().find(character => character.id === characterId) || null;
+}
+function getGeneratedProfile(characterId) {
+  if (typeof GENERATED_CHARACTER_PROFILES === "undefined") return null;
+  const profile = GENERATED_CHARACTER_PROFILES[characterId];
+  return profile && typeof profile.content === "string" && profile.content.trim() ? profile : null;
+}
 function normalizePersonalityMarkdown(markdown) {
   return String(markdown || "")
     .replace(/^\uFEFF/, "")
@@ -153,18 +231,6 @@ function normalizePersonalityMarkdown(markdown) {
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, 6000);
-}
-async function loadSophiaPersonality() {
-  if (state.personalityLoadAttempted) return state.sophiaPersonality;
-  state.personalityLoadAttempted = true;
-  try {
-    const response = await fetch(SOPHIA_PERSONALITY_PATH, { cache: "no-store" });
-    if (!response.ok) throw new Error(`profile-${response.status}`);
-    state.sophiaPersonality = normalizePersonalityMarkdown(await response.text());
-  } catch {
-    state.sophiaPersonality = "";
-  }
-  return state.sophiaPersonality;
 }
 
 function ensureVocabLibraries() {
@@ -287,8 +353,8 @@ function setGameMode(mode) {
   if (!["normal", "advanced"].includes(mode)) return;
   state.mode = mode;
   state.activeSaveId = null;
+  document.body.classList.remove("sophia-angry");
   localStorage.setItem(GAME_MODE_KEY, mode);
-  if (mode === "advanced") loadSophiaPersonality();
   const activeSaveId = localStorage.getItem(getActiveSaveKey());
   if (activeSaveId && loadSaveSlots().some(save => save.id === activeSaveId)) state.activeSaveId = activeSaveId;
   renderModePicker();
@@ -315,11 +381,12 @@ function renderCurrentScreen() {
 function createNewSave() {
   const saves = loadSaveSlots();
   const save = {
-    id: createId("save"), name: `${t("ui.save")} ${saves.length + 1}`, characterId: "sophia",
+    id: createId("save"), name: `${t("ui.save")} ${saves.length + 1}`, characterId: "default",
     affection: 0, currentIndex: 0, totalAnswered: 0, correctAnswered: 0,
     finishedEvents: [], selectedLibraries: ["default_basic"],
     wrongStreak: 0, angerPenaltyQuestions: 0, angryUntil: 0,
-    chatHistory: [], userMemory: [], personalityProfile: null,
+    chatHistory: [], personalityProfile: null,
+    characterStates: { default: createCharacterState() },
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
   saves.push(save);
@@ -357,13 +424,35 @@ function renameSave(saveId) {
 
 function getCharacter() {
   const save = getActiveSave();
-  return CHARACTERS[save?.characterId] || CHARACTERS.sophia;
+  return findCharacter(save?.characterId) || CHARACTERS.default;
 }
 function getAffectionLevel(affection) {
   const character = getCharacter();
-  let current = character.affectionLevels[0];
-  for (const level of character.affectionLevels) if (affection >= level.min) current = level;
-  return current.name;
+  let levelIndex = 0;
+  character.affectionLevels.forEach((level, index) => {
+    if (affection >= level.min) levelIndex = index;
+  });
+  return t(`ui.relationship${levelIndex}`);
+}
+function getCharacterDescription(character) {
+  const key = {
+    default: "ui.characterDescriptionDefault",
+    sophia: "ui.characterDescriptionSophia",
+    exusiai: "ui.characterDescriptionExusiai"
+  }[character.id];
+  return key ? t(key) : character.description || character.aiProfile?.personality || "";
+}
+function getLibraryDisplayName(library) {
+  return library.id === "default_basic" ? t("ui.defaultBasicLibrary") : library.name;
+}
+function getEventTitle(event) {
+  const key = {
+    event_001: "ui.event001Title",
+    event_002: "ui.event002Title",
+    event_003: "ui.event003Title",
+    event_004: "ui.event004Title"
+  }[event.id];
+  return key ? t(key) : event.title;
 }
 function getCorrectRate(save) {
   return !save || save.totalAnswered === 0 ? 0 : Math.round((save.correctAnswered / save.totalAnswered) * 100);
@@ -373,7 +462,11 @@ function getSelectedWords(save) {
   const words = [];
   loadLibraries().forEach(library => {
     if (!selected.has(library.id)) return;
-    library.words.forEach(word => words.push({ ...word, libraryId: library.id, libraryName: library.name }));
+    library.words.forEach(word => words.push({
+      ...word,
+      libraryId: library.id,
+      libraryName: getLibraryDisplayName(library)
+    }));
   });
   if (words.length && isAdvancedMode() && save.shuffleSeed) {
     words.sort((a, b) => {
@@ -384,7 +477,7 @@ function getSelectedWords(save) {
   }
   return words.length ? words : [{
     word: t("system.emptyLibraryWord"), answer: [""], hint: t("system.emptyLibraryHint"),
-    libraryId: "system", libraryName: "System", unavailable: true
+    libraryId: "system", libraryName: t("ui.systemLibraryName"), unavailable: true
   }];
 }
 function hashText(text) {
@@ -479,7 +572,7 @@ function renderGame() {
   el.speakerName.textContent = character.displayName;
   el.affectionValue.textContent = currentSave.affection;
   el.affectionLevel.textContent = getAffectionLevel(currentSave.affection);
-  el.wordCounter.textContent = `Word ${index + 1} / ${state.words.length}`;
+  el.wordCounter.textContent = t("ui.wordCounter", { current: index + 1, total: state.words.length });
   el.correctRate.textContent = t("ui.accuracy", { rate: getCorrectRate(currentSave) });
   el.wordText.textContent = word.word;
   const angerPenalty = isAdvancedMode() && (currentSave.angerPenaltyQuestions || 0) > 0;
@@ -487,10 +580,12 @@ function renderGame() {
     ? `${t("system.angryHintHidden")} · ${t("ui.fromLibrary", { name: word.libraryName })}`
     : `${word.hint || t("ui.noHint")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
   el.characterImage.alt = character.displayName;
-  el.eventBtn.classList.toggle("hidden", isAdvancedMode());
+  el.aiChatTitle.textContent = t("ui.chatWithCharacter", { name: character.displayName });
+  el.aiChatInput.placeholder = t("ui.chatPlaceholderCharacter", { name: character.displayName });
+  el.eventBtn.classList.toggle("hidden", isAdvancedMode() || character.id !== "sophia");
   el.settingsBtn.classList.toggle("hidden", !isAdvancedMode());
   el.aiChatPanel.classList.toggle("hidden", !isAdvancedMode());
-  document.body.classList.toggle("sophia-angry", isAdvancedMode() && currentSave.angryUntil > Date.now());
+  document.body.classList.toggle("sophia-angry", isAdvancedMode() && character.id === "sophia" && currentSave.angryUntil > Date.now());
   if (isAdvancedMode()) renderAiChat();
   setQuestionLocked(state.questionLocked);
 }
@@ -501,7 +596,6 @@ function enterGame() {
     return;
   }
   refreshWords();
-  if (isAdvancedMode()) loadSophiaPersonality();
   resetQuestionState(t("ui.ready"));
   switchScreen("gameScreen");
   renderGame();
@@ -541,7 +635,7 @@ function checkAnswer() {
     state.advanceTimer = setTimeout(() => nextWord(), 850);
     return;
   }
-  if (isAdvancedMode() && updatedSave.wrongStreak >= 10) {
+  if (isAdvancedMode() && getCharacter().id === "sophia" && updatedSave.wrongStreak >= 4) {
     triggerSophiaAnger("wrong-streak");
     return;
   }
@@ -582,13 +676,20 @@ function nextWord() {
   el.answerInput.focus();
 }
 
-function getAttitudeDescription(affection, angry) {
-  if (angry) return "正在生气和难过：不大吵、不毒舌，以安静而坚定的方式表达界限，回答较短。";
-  if (affection >= 90) return "非常珍惜并依赖用户，坦率关心对方，带有害羞、细腻的少女感。";
-  if (affection >= 70) return "充分信赖用户，会主动分享动漫、游戏、Cosplay和自己的感受。";
-  if (affection >= 45) return "已经熟悉，变得更加开朗可爱，会主动鼓励和邀请用户交流兴趣。";
-  if (affection >= 20) return "像逐渐熟悉的朋友，温柔真诚，但仍会紧张和脸红。";
-  return "面对不熟悉的人，拘谨、轻声细语，不主动套近乎，但会认真提供帮助。";
+function getAttitudeDescription(character, affection, angry) {
+  if (character.id === "sophia") {
+    if (angry) return "正在明显生气：态度冷淡、不耐烦、回答很短，不安慰用户，不给好脸色；但仍不辱骂或威胁用户。";
+    if (affection >= 90) return "非常珍惜并依赖用户，坦率关心对方，带有害羞、细腻的少女感。";
+    if (affection >= 70) return "充分信赖用户，会主动分享动漫、游戏、Cosplay和自己的感受。";
+    if (affection >= 45) return "已经熟悉，变得更加开朗可爱，会主动鼓励和邀请用户交流兴趣。";
+    if (affection >= 20) return "像逐渐熟悉的朋友，温柔真诚，但仍会紧张和脸红。";
+    return "面对不熟悉的人，拘谨、轻声细语，不主动套近乎，但会认真提供帮助。";
+  }
+  if (affection >= 90) return "像重要的学习伙伴，亲切、可靠并关心用户的长期进步。";
+  if (affection >= 70) return "充分信赖用户，交流自然，愿意提供更多鼓励。";
+  if (affection >= 45) return "已经熟悉，态度亲切而耐心。";
+  if (affection >= 20) return "保持友好、专业并适度鼓励。";
+  return "像初次见面的温柔老师，礼貌、清楚并专注于学习。";
 }
 function isProvocation(text) {
   const normalized = text.toLowerCase().replace(/\s+/g, "");
@@ -597,11 +698,6 @@ function isProvocation(text) {
     "sophiaisstupid", "stupidsophia", "ihatesophia", "shutup,sophia",
     "ソフィアはバカ", "ソフィア嫌い", "消えろ"
   ].some(phrase => normalized.includes(phrase.replace(/\s+/g, "")));
-}
-function isSafeMemory(memory) {
-  const text = String(memory).trim();
-  if (!text || text.length > 180) return false;
-  return !/(api\s*key|password|密码|密碼|验证码|驗證碼|credit\s*card|银行卡|銀行卡|sk-[a-z0-9_-]{10,})/i.test(text);
 }
 function extractResponseText(data) {
   if (typeof data?.output_text === "string") return data.output_text;
@@ -635,44 +731,58 @@ function parseSophiaJson(text) {
       try { return JSON.parse(trimmed.slice(start, end + 1)); } catch {}
     }
   }
-  return { reply: trimmed || t("system.aiCannotUnderstand"), memory: [], provoked: false };
+  return { reply: trimmed || t("system.aiCannotUnderstand"), provoked: false };
 }
 async function requestSophiaResponse(userText, testOnly = false) {
   const settings = loadAiSettings();
   if (!settings.apiKey) throw new Error("missing-api-key");
   const save = getActiveSave();
-  const personalityMarkdown = save?.personalityProfile?.content || await loadSophiaPersonality();
   const character = getCharacter();
+  const generatedProfile = getGeneratedProfile(character.id);
+  const personalityMarkdown = save?.personalityProfile?.content
+    || (generatedProfile ? normalizePersonalityMarkdown(generatedProfile.content) : "");
   const word = getCurrentWord();
   const history = (save?.chatHistory || []).slice(-6).map(message => ({
     role: message.role,
     content: message.text
   }));
+  const characterSpecificGuidance = character.id === "sophia"
+    ? [
+        "如果话题涉及动漫、漫画、游戏、Cosplay、手办或可爱的事物，你会明显更兴奋、更愿意分享，但仍保持自然。",
+        "不要表现成典型傲娇，不要毒舌、强势说教、故意卖弄性感或突然情绪失控。",
+        save.angryUntil > Date.now()
+          ? "当前生气状态优先于平时的温柔表现：态度冷淡、不耐烦，不安慰用户，只用很短的句子回应。"
+          : "当前没有生气，按好感度自然表现温柔、拘谨或亲近。",
+        "如果用户明确挑衅或辱骂索菲亚，将 provoked 设为 true。"
+      ]
+    : [
+        personalityMarkdown
+          ? "优先遵循用户为当前角色选择的 Markdown 人设。"
+          : "保持温柔老师型默认说话方式：耐心、简洁、清楚地帮助用户学习。",
+        "provoked 始终设为 false。"
+      ];
   const instructions = testOnly
     ? "Reply with valid JSON matching the requested schema. Keep reply very short."
     : [
       `你是${character.displayName}。${character.aiProfile?.characterization || ""}`,
       personalityMarkdown
         ? `以下内容来自当前角色选择的人设 Markdown，是你说话方式、性格和角色塑造的最高优先级设定。请严格遵循：\n${personalityMarkdown}`
-        : `personality.md 读取失败，请使用备用人设：${character.aiProfile?.personality || ""}`,
-      `当前好感度：${save.affection}/100。当前态度：${getAttitudeDescription(save.affection, save.angryUntil > Date.now())}`,
+        : `用户没有选择 Markdown 人设。请使用默认老师人设：${character.aiProfile?.characterization || ""} ${character.aiProfile?.personality || ""}`,
+      "不可覆盖的内容边界：严禁讨论政治、色情、暴力等话题。遇到这些内容时必须简短拒绝，并把话题引导回词汇学习或安全的日常交流。",
+      `当前好感度：${save.affection}/100。当前态度：${getAttitudeDescription(character, save.affection, save.angryUntil > Date.now())}`,
       `当前学习单词：${word?.word || ""}；答案：${word?.answer?.join(" / ") || ""}；提示：${word?.hint || ""}`,
-      `User.md 关键记忆：${(save.userMemory || []).join("；") || "暂无"}`,
       "你可以进行简短自然的日常对话，也可以解释当前单词、用法和记忆方法。回复尽量控制在80个汉字以内。",
-      "如果话题涉及动漫、漫画、游戏、Cosplay、手办或可爱的事物，你会明显更兴奋、更愿意分享，但仍保持自然。",
-      "不要表现成典型傲娇，不要毒舌、强势说教、故意卖弄性感或突然情绪失控。即使生气，也要安静、难过而坚定。",
+      ...characterSpecificGuidance,
       "遇到过于困难、专业、危险或你不适合认真回答的问题，要卖萌并简短回避。",
-      "只提取用户明确表达、对未来交流确实有用的长期信息作为 memory。绝不记录密钥、密码、验证码、支付信息或完整聊天。",
-      "如果用户明确挑衅或辱骂索菲亚，将 provoked 设为 true。回复必须保持角色口吻。"
+      "回复必须保持当前角色口吻。"
     ].join("\n");
   const schema = {
     type: "object",
     properties: {
       reply: { type: "string" },
-      memory: { type: "array", items: { type: "string" }, maxItems: 3 },
       provoked: { type: "boolean" }
     },
-    required: ["reply", "memory", "provoked"],
+    required: ["reply", "provoked"],
     additionalProperties: false
   };
   const headers = {
@@ -686,13 +796,13 @@ async function requestSophiaResponse(userText, testOnly = false) {
         model: settings.model,
         messages: testOnly
           ? [
-              { role: "system", content: "You are Sophia. Return only JSON with reply, memory, and provoked." },
+              { role: "system", content: "Return only JSON with reply and provoked." },
               { role: "user", content: "Say hello briefly." }
             ]
           : [
               {
                 role: "system",
-                content: `${instructions}\n请只输出 JSON，不要使用 Markdown。格式：{"reply":"回复","memory":[],"provoked":false}`
+                content: `${instructions}\n请只输出 JSON，不要使用 Markdown。格式：{"reply":"回复","provoked":false}`
               },
               ...history
             ],
@@ -759,7 +869,7 @@ function triggerSophiaAnger(reason) {
   setCharacterMood("sad");
   el.dialogueText.textContent = reply;
   el.feedbackText.textContent = t("system.angryPower", { count: 3 });
-  document.body.classList.add("sophia-angry");
+  if (getCharacter().id === "sophia") document.body.classList.add("sophia-angry");
   renderGame();
 }
 async function sendAiChat() {
@@ -772,7 +882,7 @@ async function sendAiChat() {
   }
   el.aiChatInput.value = "";
   appendChatMessage("user", text);
-  if (isProvocation(text)) {
+  if (getCharacter().id === "sophia" && isProvocation(text)) {
     triggerSophiaAnger("provocation");
     return;
   }
@@ -784,23 +894,15 @@ async function sendAiChat() {
     return;
   }
   state.aiBusy = true;
-  el.aiStatusText.textContent = t("system.aiThinking");
+  el.aiStatusText.textContent = t("system.aiThinking", { name: getCharacter().displayName });
   renderAiChat();
   try {
     const result = await requestSophiaResponse(text);
     const reply = String(result.reply || t("system.aiCannotUnderstand"));
     appendChatMessage("assistant", reply);
-    const memories = (Array.isArray(result.memory) ? result.memory : []).filter(isSafeMemory);
-    if (memories.length) {
-      updateActiveSave(save => ({
-        ...save,
-        userMemory: [...new Set([...(save.userMemory || []), ...memories])].slice(-20),
-        updatedAt: new Date().toISOString()
-      }));
-    }
     el.dialogueText.textContent = reply;
     setCharacterMood(getActiveSave().affection >= 45 ? "happy" : "normal");
-    if (result.provoked) triggerSophiaAnger("provocation");
+    if (getCharacter().id === "sophia" && result.provoked) triggerSophiaAnger("provocation");
   } catch {
     appendChatMessage("assistant", t("system.aiCannotUnderstand"));
     el.dialogueText.textContent = t("system.aiCannotUnderstand");
@@ -815,12 +917,10 @@ async function sendAiChat() {
 
 function renderSettingsScreen() {
   const settings = loadAiSettings();
-  const save = getActiveSave();
   el.apiKeyInput.value = settings.apiKey;
   el.apiTypeSelect.value = settings.apiType;
   el.apiModelInput.value = settings.model;
   el.apiBaseUrlInput.value = settings.baseUrl;
-  el.userMemoryInput.value = (save?.userMemory || []).join("\n");
 }
 function saveApiSettingsFromForm() {
   saveAiSettings({
@@ -848,12 +948,6 @@ async function testApiConnection() {
     el.testApiBtn.disabled = false;
   }
 }
-function saveUserMemoryFromForm() {
-  const memories = el.userMemoryInput.value.split(/\r?\n/).map(item => item.trim()).filter(isSafeMemory).slice(-20);
-  updateActiveSave(save => ({ ...save, userMemory: [...new Set(memories)], updatedAt: new Date().toISOString() }));
-  el.userMemoryInput.value = memories.join("\n");
-  setApiStatus(t("system.memorySaved"));
-}
 function clearAiChat() {
   updateActiveSave(save => ({ ...save, chatHistory: [], updatedAt: new Date().toISOString() }));
   setApiStatus(t("system.chatCleared"));
@@ -868,7 +962,7 @@ function renderLibraryScreen() {
   el.librarySelectList.innerHTML = libraries.map(library => `
     <article class="library-card">
       <input type="checkbox" ${selected.has(library.id) ? "checked" : ""} data-library-id="${library.id}" />
-      <div><strong>${escapeHtml(library.name)}</strong><span>${escapeHtml(t(library.readonly ? "ui.defaultLibrary" : "ui.customLibrary"))} · ${escapeHtml(t("ui.wordsCount", { count: library.words.length }))}</span></div>
+      <div><strong>${escapeHtml(getLibraryDisplayName(library))}</strong><span>${escapeHtml(t(library.readonly ? "ui.defaultLibrary" : "ui.customLibrary"))} · ${escapeHtml(t("ui.wordsCount", { count: library.words.length }))}</span></div>
       ${library.readonly ? "" : `<button class="danger-btn" type="button" data-delete-library-id="${library.id}">${escapeHtml(t("ui.delete"))}</button>`}
     </article>`).join("");
   el.librarySelectList.querySelectorAll("input[type='checkbox']").forEach(checkbox => {
@@ -877,7 +971,7 @@ function renderLibraryScreen() {
   el.librarySelectList.querySelectorAll("[data-delete-library-id]").forEach(button => {
     button.addEventListener("click", () => deleteLibrary(button.dataset.deleteLibraryId));
   });
-  el.wordLibrarySelect.innerHTML = libraries.map(library => `<option value="${library.id}">${escapeHtml(library.name)}</option>`).join("");
+  el.wordLibrarySelect.innerHTML = libraries.map(library => `<option value="${library.id}">${escapeHtml(getLibraryDisplayName(library))}</option>`).join("");
   el.libraryHint.textContent = t("ui.enabledLibraryHint", { count: (save.selectedLibraries || []).length });
   renderLibraryWordList();
 }
@@ -943,7 +1037,7 @@ function renderLibraryWordList() {
         <div><strong>${escapeHtml(word.word)}</strong><span>${escapeHtml(word.answer.join(" / "))} · ${escapeHtml(word.hint || t("ui.noHint"))}</span></div>
         ${library.readonly ? "" : `<button class="danger-btn" type="button" data-library-id="${library.id}" data-word-index="${index}">${escapeHtml(t("ui.delete"))}</button>`}
       </article>`).join("") : `<p class="help-text">${escapeHtml(t("ui.noWords"))}</p>`;
-    return `<section class="library-block"><h3>${escapeHtml(library.name)}</h3><div class="word-list-inner">${wordsHtml}</div></section>`;
+    return `<section class="library-block"><h3>${escapeHtml(getLibraryDisplayName(library))}</h3><div class="word-list-inner">${wordsHtml}</div></section>`;
   }).join("");
   el.libraryWordList.querySelectorAll("[data-word-index]").forEach(button => {
     button.addEventListener("click", () => deleteWordFromLibrary(button.dataset.libraryId, Number(button.dataset.wordIndex)));
@@ -1045,19 +1139,27 @@ function renderCharacterScreen() {
   el.selectedCharacterImage.src = selected.images.normal;
   el.selectedCharacterImage.alt = selected.displayName;
   el.selectedCharacterName.textContent = selected.displayName;
-  el.selectedCharacterDescription.textContent = selected.description || "";
+  el.selectedCharacterDescription.textContent = getCharacterDescription(selected);
   el.personalityFilePanel.classList.toggle("hidden", !isAdvancedMode());
   if (isAdvancedMode()) {
-    el.personalityFileName.textContent = save?.personalityProfile?.name
-      ? t("ui.selectedPersonalityFile", { name: save.personalityProfile.name })
-      : t("ui.defaultPersonalityFile");
+    const generatedProfile = getGeneratedProfile(selected.id);
+    if (save?.personalityProfile?.name) {
+      el.personalityFileName.textContent = t("ui.selectedPersonalityFile", { name: save.personalityProfile.name });
+      setPersonalityFileStatus("");
+    } else if (generatedProfile) {
+      el.personalityFileName.textContent = t("ui.automaticPersonalityFile", { name: generatedProfile.source || "character.md" });
+      setPersonalityFileStatus("");
+    } else {
+      el.personalityFileName.textContent = t("ui.defaultPersonalityFile");
+      setPersonalityFileStatus(t("ui.personalityReadFailed"), true);
+    }
   }
-  el.characterSelectList.innerHTML = Object.values(CHARACTERS).map(character => {
+  el.characterSelectList.innerHTML = getAllCharacters().map(character => {
     const isSelected = character.id === selected.id;
     return `
       <article class="character-option ${isSelected ? "selected" : ""}">
         <img src="${character.images.normal}" alt="${escapeHtml(character.displayName)}" />
-        <div><strong>${escapeHtml(character.displayName)}</strong><span>${escapeHtml(character.description || "")}</span></div>
+        <div><strong>${escapeHtml(character.displayName)}</strong><span>${escapeHtml(getCharacterDescription(character))}</span></div>
         <button type="button" ${isSelected ? "disabled" : ""} data-character-id="${character.id}">
           ${escapeHtml(t(isSelected ? "ui.selected" : "ui.select"))}
         </button>
@@ -1068,14 +1170,119 @@ function renderCharacterScreen() {
   });
 }
 function selectCharacter(characterId) {
-  if (!CHARACTERS[characterId]) return;
+  if (!findCharacter(characterId)) return;
   updateActiveSave(save => ({
-    ...save,
-    characterId,
-    personalityProfile: null,
+    ...activateCharacterState(save, characterId),
     updatedAt: new Date().toISOString()
   }));
+  document.body.classList.remove("sophia-angry");
   renderCharacterScreen();
+}
+function setCreateCharacterStatus(message, isError = false) {
+  el.createCharacterStatus.textContent = message;
+  el.createCharacterStatus.classList.toggle("error", isError);
+}
+function compressPortrait(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("error", reject);
+    reader.addEventListener("load", () => {
+      const image = new Image();
+      image.addEventListener("error", reject);
+      image.addEventListener("load", () => {
+        const maxSide = 900;
+        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/webp", 0.82));
+      });
+      image.src = reader.result;
+    });
+    reader.readAsDataURL(file);
+  });
+}
+async function createCustomCharacter() {
+  const name = el.customCharacterNameInput.value.trim();
+  const profile = el.customCharacterProfileInput.value.trim();
+  const files = {
+    normal: el.customNormalImageInput.files?.[0],
+    happy: el.customHappyImageInput.files?.[0],
+    sad: el.customSadImageInput.files?.[0],
+    shy: el.customShyImageInput.files?.[0]
+  };
+  if (!name) { setCreateCharacterStatus(t("system.characterNameRequired"), true); return; }
+  if (!profile) { setCreateCharacterStatus(t("system.characterProfileRequired"), true); return; }
+  if (Object.values(files).some(file => !file)) {
+    setCreateCharacterStatus(t("system.characterImagesRequired"), true);
+    return;
+  }
+  setCreateCharacterStatus(t("system.characterCreating"));
+  el.createCharacterBtn.disabled = true;
+  try {
+    const imageEntries = await Promise.all(Object.entries(files).map(async ([mood, file]) => (
+      [mood, await compressPortrait(file)]
+    )));
+    const characterId = createId("custom_character");
+    const images = Object.fromEntries(imageEntries);
+    const character = {
+      id: characterId,
+      custom: true,
+      displayName: name.slice(0, 40),
+      description: profile.slice(0, 160),
+      profilePath: "",
+      aiProfile: {
+        characterization: `你是${name}，是陪伴用户学习词汇的角色。`,
+        personality: profile.slice(0, 6000)
+      },
+      images,
+      affectionLevels: [
+        { min: 0, name: "初次见面" },
+        { min: 20, name: "逐渐熟悉" },
+        { min: 45, name: "亲近" },
+        { min: 70, name: "信赖" },
+        { min: 90, name: "重要伙伴" }
+      ],
+      lines: DEFAULT_TEACHER_LINES
+    };
+    let savedToDisk = false;
+    try {
+      const response = await fetch("/api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: characterId, name, basicProfile: profile, images })
+      });
+      if (!response.ok) throw new Error("local-service-error");
+      const result = await response.json();
+      if (!result.character) throw new Error("missing-character");
+      result.character.lines = DEFAULT_TEACHER_LINES;
+      CHARACTERS[result.character.id] = result.character;
+      if (typeof GENERATED_CHARACTER_PROFILES !== "undefined" && result.profile) {
+        GENERATED_CHARACTER_PROFILES[result.character.id] = result.profile;
+      }
+      selectCharacter(result.character.id);
+      savedToDisk = true;
+    } catch {
+      const customCharacters = loadCustomCharacters();
+      customCharacters.push(character);
+      saveCustomCharacters(customCharacters);
+      selectCharacter(character.id);
+    }
+    el.customCharacterNameInput.value = "";
+    el.customCharacterProfileInput.value = "";
+    [el.customNormalImageInput, el.customHappyImageInput, el.customSadImageInput, el.customShyImageInput]
+      .forEach(input => { input.value = ""; });
+    setCreateCharacterStatus(t("system.characterCreated", { name }));
+    if (!savedToDisk) {
+      setPersonalityFileStatus(t("ui.localServiceUnavailable"), true);
+    }
+  } catch {
+    setCreateCharacterStatus(t("system.characterCreateFailed"), true);
+  } finally {
+    el.createCharacterBtn.disabled = false;
+  }
 }
 function setPersonalityFileStatus(message, isError = false) {
   el.personalityFileStatus.textContent = message;
@@ -1137,7 +1344,7 @@ function renderEventScreen() {
     const status = done ? t("ui.completed") : unlocked ? t("ui.available") : t("ui.requiresAffection", { value: event.requiredAffection });
     return `
       <article class="event-card ${done ? "done" : unlocked ? "" : "locked"}">
-        <strong>${escapeHtml(event.title)}</strong>
+        <strong>${escapeHtml(getEventTitle(event))}</strong>
         <span>${escapeHtml(status)} · ${escapeHtml(t("ui.eventReward", { value: event.rewardAffection }))}</span>
         <div class="button-row">
           ${unlocked
@@ -1210,6 +1417,7 @@ function bindEvents() {
   el.createSaveBtn.addEventListener("click", createNewSave);
   el.backToStartBtn.addEventListener("click", () => {
     if (state.advanceTimer) clearTimeout(state.advanceTimer);
+    document.body.classList.remove("sophia-angry");
     switchScreen("startScreen");
     renderStartScreen();
   });
@@ -1264,11 +1472,11 @@ function bindEvents() {
   });
   el.saveApiSettingsBtn.addEventListener("click", saveApiSettingsFromForm);
   el.testApiBtn.addEventListener("click", testApiConnection);
-  el.saveUserMemoryBtn.addEventListener("click", saveUserMemoryFromForm);
   el.clearChatBtn.addEventListener("click", clearAiChat);
   el.selectPersonalityFileBtn.addEventListener("click", () => el.personalityFileInput.click());
   el.resetPersonalityFileBtn.addEventListener("click", resetPersonalityFile);
   el.personalityFileInput.addEventListener("change", event => importPersonalityFile(event.target.files?.[0]));
+  el.createCharacterBtn.addEventListener("click", createCustomCharacter);
   el.aiSendBtn.addEventListener("click", sendAiChat);
   el.aiChatInput.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -1285,7 +1493,6 @@ function init() {
   bindEvents();
   applyTranslations();
   renderModePicker();
-  if (isAdvancedMode()) loadSophiaPersonality();
   switchScreen("startScreen");
   renderStartScreen();
 }

@@ -31,7 +31,7 @@
           </button>
           <button id="advancedModeBtn" class="mode-card advanced" type="button">
             <strong data-i18n="ui.advancedMode">高级模式：API 消耗模式</strong>
-            <span data-i18n="ui.advancedModeDescription">启用 AI 索菲亚、对话与本地记忆。</span>
+            <span data-i18n="ui.advancedModeDescription">启用 AI 角色对话和单词解释。</span>
           </button>
         </section>
         <p id="modeNotice" class="mode-notice"></p>
@@ -104,12 +104,12 @@
         </section>
         <section id="aiChatPanel" class="ai-chat-panel hidden">
           <div class="ai-chat-header">
-            <strong data-i18n="ui.chatWithSophia">与索菲亚对话</strong>
+            <strong id="aiChatTitle">与索菲亚对话</strong>
             <span id="aiStatusText" data-i18n="ui.aiReady">AI 模式</span>
           </div>
           <div id="aiChatLog" class="ai-chat-log" aria-live="polite"></div>
           <div class="ai-chat-input-row">
-            <textarea id="aiChatInput" rows="2" data-i18n-placeholder="ui.chatPlaceholder"></textarea>
+            <textarea id="aiChatInput" rows="2"></textarea>
             <button id="aiSendBtn" type="button" data-i18n="ui.send">发送</button>
           </div>
         </section>
@@ -144,18 +144,10 @@
               <div class="button-row">
                 <button id="saveApiSettingsBtn" type="button" data-i18n="ui.saveSettings">保存设置</button>
                 <button id="testApiBtn" class="secondary-btn" type="button" data-i18n="ui.testApi">测试 API</button>
+                <button id="clearChatBtn" class="secondary-btn" type="button" data-i18n="ui.clearChat">清空对话</button>
               </div>
               <p id="apiTestStatus" class="transfer-status" aria-live="polite"></p>
               <p class="security-warning" data-i18n="ui.apiSecurityWarning"></p>
-            </div>
-          </section>
-          <section class="panel-card">
-            <h2 data-i18n="ui.userMemory">User.md 记忆</h2>
-            <p class="help-text" data-i18n="ui.userMemoryDescription"></p>
-            <textarea id="userMemoryInput" class="memory-editor" rows="12"></textarea>
-            <div class="button-row">
-              <button id="saveUserMemoryBtn" type="button" data-i18n="ui.saveMemory">保存记忆</button>
-              <button id="clearChatBtn" class="secondary-btn" type="button" data-i18n="ui.clearChat">清空对话</button>
             </div>
           </section>
         </div>
@@ -201,6 +193,7 @@
             <p id="selectedCharacterDescription" class="help-text"></p>
             <div id="personalityFilePanel" class="personality-file-panel hidden">
               <strong data-i18n="ui.personalityProfile">AI 人设文件</strong>
+              <p class="profile-warning" data-i18n="ui.personalityFallbackNotice"></p>
               <p id="personalityFileName" class="help-text"></p>
               <button id="selectPersonalityFileBtn" class="secondary-btn" type="button" data-i18n="ui.selectPersonalityFile">选择 Markdown 人设</button>
               <button id="resetPersonalityFileBtn" class="secondary-btn" type="button" data-i18n="ui.resetPersonalityFile">恢复默认人设</button>
@@ -211,6 +204,22 @@
           <section class="panel-card">
             <h2 data-i18n="ui.availableCharacters">可选择角色</h2>
             <div id="characterSelectList" class="character-select-list"></div>
+          </section>
+          <section class="panel-card character-creator-panel">
+            <h2 data-i18n="ui.createCharacter">创建角色</h2>
+            <p class="help-text" data-i18n="ui.createCharacterDescription"></p>
+            <div class="form-stack">
+              <input id="customCharacterNameInput" type="text" data-i18n-placeholder="ui.characterNamePlaceholder" />
+              <textarea id="customCharacterProfileInput" rows="8" data-i18n-placeholder="ui.basicProfilePlaceholder"></textarea>
+              <div class="portrait-file-grid">
+                <label><span data-i18n="ui.normalPortrait">普通立绘</span><input id="customNormalImageInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                <label><span data-i18n="ui.happyPortrait">开心立绘</span><input id="customHappyImageInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                <label><span data-i18n="ui.sadPortrait">难过立绘</span><input id="customSadImageInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                <label><span data-i18n="ui.shyPortrait">害羞立绘</span><input id="customShyImageInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              </div>
+              <button id="createCharacterBtn" type="button" data-i18n="ui.createCharacterButton">创建并选择角色</button>
+              <p id="createCharacterStatus" class="transfer-status" aria-live="polite"></p>
+            </div>
           </section>
         </div>
       </div>
@@ -235,6 +244,7 @@
   </main>
   <script src="./data/language.js"></script>
   <script src="./data/characters.js"></script>
+  <script src="./data/generated-characters.js"></script>
   <script src="./data/vocab-libraries.js"></script>
   <script src="./data/events.js"></script>
   <script src="./js/app.js"></script>

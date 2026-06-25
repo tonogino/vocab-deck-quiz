@@ -166,10 +166,6 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(255, 158, 181, .28);
 }
 
-.memory-editor {
-  min-height: 250px;
-}
-
 .security-warning {
   padding: 12px;
   border: 2px solid #bc6d42;
@@ -181,12 +177,87 @@ textarea:focus {
 
 body.sophia-angry .right-panel {
   animation: angry-shake .24s linear 3;
-  border-color: #9d3d3d;
+  border-color: #71808b;
 }
 
 body.sophia-angry .dialogue-box,
 body.sophia-angry .ai-chat-panel {
-  background: linear-gradient(180deg, #fff, #ffd2d2);
+  background: linear-gradient(180deg, #202831, #11171d);
+}
+
+body.sophia-angry {
+  --paper: #182028;
+  --cream: #202a33;
+  --ink: #d7e0e7;
+  --brown: #9aabb8;
+  --brown-soft: #9ba8b2;
+  --line: #53626e;
+  --white: #202a32;
+  color: #d7e0e7;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(85, 104, 118, .18), transparent 35%),
+    linear-gradient(145deg, #111820, #222a31 55%, #0b1117);
+}
+
+body.sophia-angry::before {
+  opacity: .55;
+  background-image:
+    linear-gradient(45deg, rgba(176, 194, 207, .04) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(176, 194, 207, .035) 25%, transparent 25%);
+}
+
+body.sophia-angry .left-panel,
+body.sophia-angry .right-panel,
+body.sophia-angry .study-card,
+body.sophia-angry .status-card > div {
+  background: linear-gradient(180deg, rgba(35, 45, 54, .97), rgba(18, 25, 32, .98));
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, .35), 0 24px 52px rgba(0, 0, 0, .46);
+}
+
+body.sophia-angry h1,
+body.sophia-angry h2,
+body.sophia-angry h3,
+body.sophia-angry .status-card strong,
+body.sophia-angry .feedback,
+body.sophia-angry .ai-chat-header {
+  color: #c6d2da;
+  text-shadow: none;
+}
+
+body.sophia-angry .word-box,
+body.sophia-angry .character-stage {
+  background:
+    linear-gradient(180deg, rgba(67, 81, 91, .22), rgba(11, 17, 22, .7)),
+    repeating-linear-gradient(0deg, #202a32 0, #202a32 28px, #34414b 29px, #34414b 30px);
+}
+
+body.sophia-angry .feedback {
+  border-color: #667783;
+  background: rgba(26, 36, 44, .94);
+}
+
+body.sophia-angry input,
+body.sophia-angry textarea,
+body.sophia-angry select {
+  color: #dce5eb;
+  background: #182129;
+  border-color: #61717d;
+}
+
+body.sophia-angry .chat-message.assistant {
+  color: #dce5eb;
+  background: #1b242c;
+  border-color: #778793;
+}
+
+body.sophia-angry .chat-message.user {
+  color: #d9e0e5;
+  background: #35434e;
+  border-color: #6f808c;
+}
+
+body.sophia-angry #characterImage {
+  filter: grayscale(.5) brightness(.72) contrast(1.1) drop-shadow(5px 5px 0 rgba(0, 0, 0, .42));
 }
 
 @keyframes angry-shake {
@@ -221,6 +292,14 @@ body.sophia-angry .ai-chat-panel {
 
 .personality-file-panel button {
   margin: 5px;
+}
+
+.profile-warning {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff0cf;
+  color: #814027;
+  font-weight: 800;
 }
 
 .character-select-list {
@@ -263,12 +342,43 @@ body.sophia-angry .ai-chat-panel {
   font-weight: 700;
 }
 
+.character-creator-panel {
+  grid-column: span 2;
+}
+
+.portrait-file-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.portrait-file-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--brown-soft);
+  font-weight: 800;
+}
+
+.portrait-file-grid input[type="file"] {
+  border-radius: 16px;
+  padding: 10px;
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .mode-picker,
   .ai-chat-input-row {
     grid-template-columns: 1fr;
   }
   .character-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .character-creator-panel {
+    grid-column: span 1;
+  }
+
+  .portrait-file-grid {
     grid-template-columns: 1fr;
   }
 
