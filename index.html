@@ -1,1 +1,71 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vocab Deck Quiz</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Vocab Deck Quiz</h1>
+      <p>Create word decks and practice with random quizzes.</p>
+    </header>
 
+    <!-- Deck Selection Page -->
+    <main id="deck-page" class="page">
+      <section class="card">
+        <h2>Select a Deck</h2>
+
+        <div class="input-row">
+          <input id="new-deck-name" type="text" placeholder="New deck name..." />
+          <button id="create-deck-btn">Create Deck</button>
+        </div>
+
+        <div id="deck-list" class="deck-list"></div>
+      </section>
+    </main>
+
+    <!-- Deck Detail Page -->
+    <main id="word-page" class="page hidden">
+      <section class="card">
+        <button id="back-btn" class="secondary-btn">← Back to Decks</button>
+        <h2 id="current-deck-title">Deck Name</h2>
+        <p id="word-count">0 words</p>
+
+        <hr />
+
+        <h3>Add Word</h3>
+        <div class="input-column">
+          <input id="word-input" type="text" placeholder="Word, e.g. apple" />
+          <input id="meaning-input" type="text" placeholder="Meaning, e.g. 苹果" />
+          <button id="add-word-btn">Add Word</button>
+        </div>
+
+        <hr />
+
+        <h3>Quiz</h3>
+        <div id="quiz-box" class="quiz-box">
+          <p id="quiz-question">Click Start Quiz to begin.</p>
+          <input id="answer-input" type="text" placeholder="Type the meaning..." />
+          <div class="button-row">
+            <button id="start-quiz-btn">Start Quiz</button>
+            <button id="submit-answer-btn">Submit Answer</button>
+            <button id="next-question-btn">Next</button>
+          </div>
+          <p id="quiz-result"></p>
+        </div>
+
+        <hr />
+
+        <h3>Words in This Deck</h3>
+        <div id="word-list" class="word-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
