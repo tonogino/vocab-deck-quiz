@@ -51,6 +51,38 @@ function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
 }
 
+function initializeApp() {
+  loadData();
+  bindEvents();
+  renderDecks();
+}
+
+function bindEvents() {
+  createDeckBtn.addEventListener("click", createDeck);
+  newDeckNameInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      createDeck();
+    }
+  });
+
+  backBtn.addEventListener("click", goBackToDecks);
+
+  addWordBtn.addEventListener("click", addWord);
+  meaningInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addWord();
+    }
+  });
+
+  startQuizBtn.addEventListener("click", startQuiz);
+  submitAnswerBtn.addEventListener("click", submitAnswerMain);
+  nextQuestionBtn.addEventListener("click", handleQuizButton);
+  quizActionBtn.addEventListener("click", handleQuizButton);
+  exitQuizBtn.addEventListener("click", exitQuiz);
+}
+
 function loadData() {
   const savedData = localStorage.getItem(STORAGE_KEY);
 
@@ -298,8 +330,9 @@ function startQuiz() {
 
 function pickRandomWordMain() {
   const dueWords = getDueWords();
-  quizStats.textContent = `Correct: ${currentQuizWord.correctCount} | Wrong: ${currentQuizWord.wrongCount}`;
+
   if (dueWords.length === 0) {
+    quizStats.textContent = "Correct: 0 | Wrong: 0";
     quizQuestionMain.textContent = "No words to review now.";
     quizAnswerMain.value = "";
     quizFeedbackMain.textContent = "All caught up. Come back later.";
@@ -310,6 +343,7 @@ function pickRandomWordMain() {
   const randomIndex = Math.floor(Math.random() * dueWords.length);
   currentQuizWord = dueWords[randomIndex];
 
+  quizStats.textContent = `Correct: ${currentQuizWord.correctCount} | Wrong: ${currentQuizWord.wrongCount}`;
   quizQuestionMain.textContent = currentQuizWord.word;
   quizAnswerMain.value = "";
   quizFeedbackMain.textContent = "";
@@ -396,8 +430,12 @@ function exitQuiz() {
   wordPage.classList.remove("hidden");
 
   currentQuizWord = null;
+  waitingForNext = false;
+  quizFeedbackMain.textContent = "";
   renderCurrentDeck();
 }
+
+initializeApp();
 
 function pickRandomWord() {
   const deck = getCurrentDeck();
