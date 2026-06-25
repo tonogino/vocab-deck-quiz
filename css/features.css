@@ -211,6 +211,18 @@ body.sophia-angry .ai-chat-panel {
   filter: drop-shadow(5px 8px 0 rgba(122, 74, 53, .2));
 }
 
+.personality-file-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 2px dashed rgba(122, 74, 53, .45);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .5);
+}
+
+.personality-file-panel button {
+  margin: 5px;
+}
+
 .character-select-list {
   display: grid;
   gap: 14px;

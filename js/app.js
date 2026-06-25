@@ -7,6 +7,7 @@ const LANGUAGE_KEY = "sophia_v2_language";
 const DATA_VERSION_KEY = "sophia_v2_data_version";
 const GAME_MODE_KEY = "sophia_v3_game_mode";
 const AI_SETTINGS_KEY = "sophia_v3_ai_settings";
+const SOPHIA_PERSONALITY_PATH = "./characters/sophia/profile/personality.md";
 
 const state = {
   activeSaveId: null,
@@ -18,7 +19,9 @@ const state = {
   questionLocked: false,
   advancing: false,
   advanceTimer: null,
-  aiBusy: false
+  aiBusy: false,
+  sophiaPersonality: "",
+  personalityLoadAttempted: false
 };
 
 const $ = id => document.getElementById(id);
@@ -45,12 +48,17 @@ const el = {
   libraryFileInput: $("libraryFileInput"), libraryTransferStatus: $("libraryTransferStatus"),
   closeCharacterBtn: $("closeCharacterBtn"), selectedCharacterImage: $("selectedCharacterImage"),
   selectedCharacterName: $("selectedCharacterName"), selectedCharacterDescription: $("selectedCharacterDescription"),
-  characterSelectList: $("characterSelectList"), closeEventBtn: $("closeEventBtn"), eventList: $("eventList"),
+  characterSelectList: $("characterSelectList"), personalityFilePanel: $("personalityFilePanel"),
+  personalityFileName: $("personalityFileName"), selectPersonalityFileBtn: $("selectPersonalityFileBtn"),
+  resetPersonalityFileBtn: $("resetPersonalityFileBtn"), personalityFileInput: $("personalityFileInput"),
+  personalityFileStatus: $("personalityFileStatus"),
+  closeEventBtn: $("closeEventBtn"), eventList: $("eventList"),
   eventListPanel: $("eventListPanel"), eventPlayPanel: $("eventPlayPanel"),
   eventCharacterImage: $("eventCharacterImage"), eventSpeakerName: $("eventSpeakerName"),
   eventProgressText: $("eventProgressText"), eventDialogueText: $("eventDialogueText"),
   eventNextLineBtn: $("eventNextLineBtn"), eventExitBtn: $("eventExitBtn"),
-  closeSettingsBtn: $("closeSettingsBtn"), apiKeyInput: $("apiKeyInput"), apiModelInput: $("apiModelInput"),
+  closeSettingsBtn: $("closeSettingsBtn"), apiKeyInput: $("apiKeyInput"), apiTypeSelect: $("apiTypeSelect"),
+  apiModelInput: $("apiModelInput"),
   apiBaseUrlInput: $("apiBaseUrlInput"), saveApiSettingsBtn: $("saveApiSettingsBtn"), testApiBtn: $("testApiBtn"),
   apiTestStatus: $("apiTestStatus"), userMemoryInput: $("userMemoryInput"),
   saveUserMemoryBtn: $("saveUserMemoryBtn"), clearChatBtn: $("clearChatBtn")
@@ -112,16 +120,51 @@ function updateActiveSave(updater) {
 
 function loadAiSettings() {
   const settings = safeParse(localStorage.getItem(AI_SETTINGS_KEY), {});
+  const savedBaseUrl = typeof settings.baseUrl === "string" ? settings.baseUrl.trim() : "";
   return {
     apiKey: typeof settings.apiKey === "string" ? settings.apiKey : "",
-    model: typeof settings.model === "string" && settings.model.trim() ? settings.model.trim() : "gpt-5.5",
-    baseUrl: typeof settings.baseUrl === "string" && settings.baseUrl.trim()
-      ? settings.baseUrl.trim().replace(/\/+$/, "")
-      : "https://api.openai.com/v1"
+    apiType: settings.apiType === "responses"
+      ? "responses"
+      : settings.apiType === "chat_completions"
+        ? "chat_completions"
+        : savedBaseUrl.includes("api.openai.com")
+          ? "responses"
+          : "chat_completions",
+    model: typeof settings.model === "string" && settings.model.trim()
+      ? settings.model.trim()
+      : "[m1]claude-sonnet-4-6",
+    baseUrl: savedBaseUrl
+      ? savedBaseUrl.replace(/\/+$/, "")
+      : "https://pro.mmw.ink/v1"
   };
 }
 function saveAiSettings(settings) {
   localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+}
+function normalizePersonalityMarkdown(markdown) {
+  return String(markdown || "")
+    .replace(/^\uFEFF/, "")
+    .replace(/^---[\s\S]*?---\s*/m, "")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/^\s*[-*]\s+/gm, "· ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 6000);
+}
+async function loadSophiaPersonality() {
+  if (state.personalityLoadAttempted) return state.sophiaPersonality;
+  state.personalityLoadAttempted = true;
+  try {
+    const response = await fetch(SOPHIA_PERSONALITY_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`profile-${response.status}`);
+    state.sophiaPersonality = normalizePersonalityMarkdown(await response.text());
+  } catch {
+    state.sophiaPersonality = "";
+  }
+  return state.sophiaPersonality;
 }
 
 function ensureVocabLibraries() {
@@ -245,6 +288,7 @@ function setGameMode(mode) {
   state.mode = mode;
   state.activeSaveId = null;
   localStorage.setItem(GAME_MODE_KEY, mode);
+  if (mode === "advanced") loadSophiaPersonality();
   const activeSaveId = localStorage.getItem(getActiveSaveKey());
   if (activeSaveId && loadSaveSlots().some(save => save.id === activeSaveId)) state.activeSaveId = activeSaveId;
   renderModePicker();
@@ -275,7 +319,7 @@ function createNewSave() {
     affection: 0, currentIndex: 0, totalAnswered: 0, correctAnswered: 0,
     finishedEvents: [], selectedLibraries: ["default_basic"],
     wrongStreak: 0, angerPenaltyQuestions: 0, angryUntil: 0,
-    chatHistory: [], userMemory: [],
+    chatHistory: [], userMemory: [], personalityProfile: null,
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
   saves.push(save);
@@ -457,6 +501,7 @@ function enterGame() {
     return;
   }
   refreshWords();
+  if (isAdvancedMode()) loadSophiaPersonality();
   resetQuestionState(t("ui.ready"));
   switchScreen("gameScreen");
   renderGame();
@@ -538,12 +583,12 @@ function nextWord() {
 }
 
 function getAttitudeDescription(affection, angry) {
-  if (angry) return "正在生气：回答简短、傲娇、有学习管理员的气势，但不辱骂用户。";
-  if (affection >= 90) return "非常亲密和依恋，会坦率关心用户，偶尔害羞撒娇。";
-  if (affection >= 70) return "信赖并亲近用户，语气温柔自然。";
-  if (affection >= 45) return "逐渐亲近，会主动鼓励用户。";
-  if (affection >= 20) return "像普通朋友，友好但保留一点傲娇。";
-  return "礼貌克制，与用户保持一点距离。";
+  if (angry) return "正在生气和难过：不大吵、不毒舌，以安静而坚定的方式表达界限，回答较短。";
+  if (affection >= 90) return "非常珍惜并依赖用户，坦率关心对方，带有害羞、细腻的少女感。";
+  if (affection >= 70) return "充分信赖用户，会主动分享动漫、游戏、Cosplay和自己的感受。";
+  if (affection >= 45) return "已经熟悉，变得更加开朗可爱，会主动鼓励和邀请用户交流兴趣。";
+  if (affection >= 20) return "像逐渐熟悉的朋友，温柔真诚，但仍会紧张和脸红。";
+  return "面对不熟悉的人，拘谨、轻声细语，不主动套近乎，但会认真提供帮助。";
 }
 function isProvocation(text) {
   const normalized = text.toLowerCase().replace(/\s+/g, "");
@@ -567,13 +612,39 @@ function extractResponseText(data) {
   }
   return "";
 }
+function extractChatCompletionText(data) {
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map(part => typeof part?.text === "string" ? part.text : "").join("");
+  }
+  return "";
+}
+function parseSophiaJson(text) {
+  const trimmed = String(text || "").trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) {
+      try { return JSON.parse(fenced[1].trim()); } catch {}
+    }
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try { return JSON.parse(trimmed.slice(start, end + 1)); } catch {}
+    }
+  }
+  return { reply: trimmed || t("system.aiCannotUnderstand"), memory: [], provoked: false };
+}
 async function requestSophiaResponse(userText, testOnly = false) {
   const settings = loadAiSettings();
   if (!settings.apiKey) throw new Error("missing-api-key");
   const save = getActiveSave();
+  const personalityMarkdown = save?.personalityProfile?.content || await loadSophiaPersonality();
   const character = getCharacter();
   const word = getCurrentWord();
-  const history = (save?.chatHistory || []).slice(-12).map(message => ({
+  const history = (save?.chatHistory || []).slice(-6).map(message => ({
     role: message.role,
     content: message.text
   }));
@@ -581,51 +652,78 @@ async function requestSophiaResponse(userText, testOnly = false) {
     ? "Reply with valid JSON matching the requested schema. Keep reply very short."
     : [
       `你是${character.displayName}。${character.aiProfile?.characterization || ""}`,
-      character.aiProfile?.personality || "",
+      personalityMarkdown
+        ? `以下内容来自当前角色选择的人设 Markdown，是你说话方式、性格和角色塑造的最高优先级设定。请严格遵循：\n${personalityMarkdown}`
+        : `personality.md 读取失败，请使用备用人设：${character.aiProfile?.personality || ""}`,
       `当前好感度：${save.affection}/100。当前态度：${getAttitudeDescription(save.affection, save.angryUntil > Date.now())}`,
       `当前学习单词：${word?.word || ""}；答案：${word?.answer?.join(" / ") || ""}；提示：${word?.hint || ""}`,
       `User.md 关键记忆：${(save.userMemory || []).join("；") || "暂无"}`,
-      "你可以进行简短自然的日常对话，也可以解释当前单词、用法和记忆方法。",
-      "遇到过于困难、专业、危险或你不适合认真回答的问题，要卖萌并简短回避，不要长篇严肃作答。",
+      "你可以进行简短自然的日常对话，也可以解释当前单词、用法和记忆方法。回复尽量控制在80个汉字以内。",
+      "如果话题涉及动漫、漫画、游戏、Cosplay、手办或可爱的事物，你会明显更兴奋、更愿意分享，但仍保持自然。",
+      "不要表现成典型傲娇，不要毒舌、强势说教、故意卖弄性感或突然情绪失控。即使生气，也要安静、难过而坚定。",
+      "遇到过于困难、专业、危险或你不适合认真回答的问题，要卖萌并简短回避。",
       "只提取用户明确表达、对未来交流确实有用的长期信息作为 memory。绝不记录密钥、密码、验证码、支付信息或完整聊天。",
       "如果用户明确挑衅或辱骂索菲亚，将 provoked 设为 true。回复必须保持角色口吻。"
     ].join("\n");
-  const response = await fetch(`${settings.baseUrl}/responses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.apiKey}`
+  const schema = {
+    type: "object",
+    properties: {
+      reply: { type: "string" },
+      memory: { type: "array", items: { type: "string" }, maxItems: 3 },
+      provoked: { type: "boolean" }
     },
-    body: JSON.stringify({
-      model: settings.model,
-      instructions,
-      input: testOnly ? "Say hello as Sophia." : history,
-      store: false,
-      max_output_tokens: testOnly ? 120 : 500,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "sophia_reply",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              reply: { type: "string" },
-              memory: { type: "array", items: { type: "string" }, maxItems: 3 },
-              provoked: { type: "boolean" }
-            },
-            required: ["reply", "memory", "provoked"],
-            additionalProperties: false
+    required: ["reply", "memory", "provoked"],
+    additionalProperties: false
+  };
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${settings.apiKey}`
+  };
+  const isCompatible = settings.apiType === "chat_completions";
+  const endpoint = isCompatible ? `${settings.baseUrl}/chat/completions` : `${settings.baseUrl}/responses`;
+  const body = isCompatible
+    ? {
+        model: settings.model,
+        messages: testOnly
+          ? [
+              { role: "system", content: "You are Sophia. Return only JSON with reply, memory, and provoked." },
+              { role: "user", content: "Say hello briefly." }
+            ]
+          : [
+              {
+                role: "system",
+                content: `${instructions}\n请只输出 JSON，不要使用 Markdown。格式：{"reply":"回复","memory":[],"provoked":false}`
+              },
+              ...history
+            ],
+        max_tokens: testOnly ? 60 : 180,
+        temperature: 0.7
+      }
+    : {
+        model: settings.model,
+        instructions,
+        input: testOnly ? "Say hello as Sophia." : history,
+        store: false,
+        max_output_tokens: testOnly ? 60 : 180,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "sophia_reply",
+            strict: true,
+            schema
           }
         }
-      }
-    })
+      };
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body)
   });
   if (!response.ok) throw new Error(`api-${response.status}`);
   const data = await response.json();
-  const output = extractResponseText(data);
+  const output = isCompatible ? extractChatCompletionText(data) : extractResponseText(data);
   if (!output) throw new Error("empty-response");
-  return JSON.parse(output);
+  return parseSophiaJson(output);
 }
 function appendChatMessage(role, text) {
   updateActiveSave(save => ({
@@ -719,6 +817,7 @@ function renderSettingsScreen() {
   const settings = loadAiSettings();
   const save = getActiveSave();
   el.apiKeyInput.value = settings.apiKey;
+  el.apiTypeSelect.value = settings.apiType;
   el.apiModelInput.value = settings.model;
   el.apiBaseUrlInput.value = settings.baseUrl;
   el.userMemoryInput.value = (save?.userMemory || []).join("\n");
@@ -726,8 +825,9 @@ function renderSettingsScreen() {
 function saveApiSettingsFromForm() {
   saveAiSettings({
     apiKey: el.apiKeyInput.value.trim(),
-    model: el.apiModelInput.value.trim() || "gpt-5.5",
-    baseUrl: (el.apiBaseUrlInput.value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "")
+    apiType: el.apiTypeSelect.value === "responses" ? "responses" : "chat_completions",
+    model: el.apiModelInput.value.trim() || "[m1]claude-sonnet-4-6",
+    baseUrl: (el.apiBaseUrlInput.value.trim() || "https://pro.mmw.ink/v1").replace(/\/+$/, "")
   });
   setApiStatus(t("system.settingsSaved"));
 }
@@ -941,10 +1041,17 @@ function importLibraryFile(file) {
 
 function renderCharacterScreen() {
   const selected = getCharacter();
+  const save = getActiveSave();
   el.selectedCharacterImage.src = selected.images.normal;
   el.selectedCharacterImage.alt = selected.displayName;
   el.selectedCharacterName.textContent = selected.displayName;
   el.selectedCharacterDescription.textContent = selected.description || "";
+  el.personalityFilePanel.classList.toggle("hidden", !isAdvancedMode());
+  if (isAdvancedMode()) {
+    el.personalityFileName.textContent = save?.personalityProfile?.name
+      ? t("ui.selectedPersonalityFile", { name: save.personalityProfile.name })
+      : t("ui.defaultPersonalityFile");
+  }
   el.characterSelectList.innerHTML = Object.values(CHARACTERS).map(character => {
     const isSelected = character.id === selected.id;
     return `
@@ -962,8 +1069,60 @@ function renderCharacterScreen() {
 }
 function selectCharacter(characterId) {
   if (!CHARACTERS[characterId]) return;
-  updateActiveSave(save => ({ ...save, characterId, updatedAt: new Date().toISOString() }));
+  updateActiveSave(save => ({
+    ...save,
+    characterId,
+    personalityProfile: null,
+    updatedAt: new Date().toISOString()
+  }));
   renderCharacterScreen();
+}
+function setPersonalityFileStatus(message, isError = false) {
+  el.personalityFileStatus.textContent = message;
+  el.personalityFileStatus.classList.toggle("error", isError);
+}
+function importPersonalityFile(file) {
+  if (!file || !isAdvancedMode()) return;
+  if (!/\.(md|markdown)$/i.test(file.name)) {
+    setPersonalityFileStatus(t("system.personalityInvalid"), true);
+    el.personalityFileInput.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    const content = normalizePersonalityMarkdown(reader.result);
+    if (!content) {
+      setPersonalityFileStatus(t("system.personalityInvalid"), true);
+      return;
+    }
+    updateActiveSave(save => ({
+      ...save,
+      personalityProfile: {
+        name: file.name,
+        content,
+        importedAt: new Date().toISOString()
+      },
+      updatedAt: new Date().toISOString()
+    }));
+    renderCharacterScreen();
+    setPersonalityFileStatus(t("system.personalityLoaded", { name: file.name }));
+    el.personalityFileInput.value = "";
+  });
+  reader.addEventListener("error", () => {
+    setPersonalityFileStatus(t("system.personalityInvalid"), true);
+    el.personalityFileInput.value = "";
+  });
+  reader.readAsText(file, "UTF-8");
+}
+function resetPersonalityFile() {
+  if (!isAdvancedMode()) return;
+  updateActiveSave(save => ({
+    ...save,
+    personalityProfile: null,
+    updatedAt: new Date().toISOString()
+  }));
+  renderCharacterScreen();
+  setPersonalityFileStatus(t("system.personalityReset"));
 }
 
 function renderEventScreen() {
@@ -1107,6 +1266,9 @@ function bindEvents() {
   el.testApiBtn.addEventListener("click", testApiConnection);
   el.saveUserMemoryBtn.addEventListener("click", saveUserMemoryFromForm);
   el.clearChatBtn.addEventListener("click", clearAiChat);
+  el.selectPersonalityFileBtn.addEventListener("click", () => el.personalityFileInput.click());
+  el.resetPersonalityFileBtn.addEventListener("click", resetPersonalityFile);
+  el.personalityFileInput.addEventListener("change", event => importPersonalityFile(event.target.files?.[0]));
   el.aiSendBtn.addEventListener("click", sendAiChat);
   el.aiChatInput.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -1123,6 +1285,7 @@ function init() {
   bindEvents();
   applyTranslations();
   renderModePicker();
+  if (isAdvancedMode()) loadSophiaPersonality();
   switchScreen("startScreen");
   renderStartScreen();
 }

@@ -89,6 +89,9 @@ const I18N = {
       apiSettingsDescription: "API 配置仅保存在当前浏览器。高级模式的聊天和记忆不会进入普通模式。",
       apiConfiguration: "API 配置",
       apiKey: "API Key",
+      apiType: "接口类型",
+      apiTypeCompatible: "OpenAI 兼容 / Chat Completions",
+      apiTypeResponses: "OpenAI Responses",
       apiModel: "模型",
       apiBaseUrl: "API 地址",
       saveSettings: "保存设置",
@@ -98,6 +101,12 @@ const I18N = {
       userMemoryDescription: "每行一条关键信息。索菲亚只会把这些长期信息带入后续对话。",
       saveMemory: "保存记忆",
       clearChat: "清空对话"
+      ,
+      personalityProfile: "AI 人设文件",
+      selectPersonalityFile: "选择 Markdown 人设",
+      resetPersonalityFile: "恢复默认人设",
+      defaultPersonalityFile: "默认：索菲亚 personality.md（内置人设）",
+      selectedPersonalityFile: "当前：{name}"
     },
     system: {
       emptyInput: "先输入答案再确认。",
@@ -135,9 +144,13 @@ const I18N = {
       aiCannotUnderstand: "看不懂",
       chatCleared: "对话记录已清空。",
       angryHintHidden: "索菲亚生气了，把提示藏起来了。",
-      angryPower: "索菲亚发动了学习管理员权限：题序已打乱，接下来 {count} 题不能看提示或答案。",
-      provokedReply: "……你是故意惹我生气的吧？那就认真学习。",
+      angryPower: "索菲亚安静地收起了提示：题序已打乱，接下来 {count} 题不能看提示或答案。",
+      provokedReply: "那个……这样说真的会让我难过。我不想和你争吵，请先认真学习吧。",
       noApiConfigured: "API 为空或不可用。"
+      ,
+      personalityLoaded: "已读取并保存人设文件“{name}”。",
+      personalityInvalid: "无法读取该人设文件，请选择有效的 .md 文件。",
+      personalityReset: "已恢复索菲亚的默认人设。"
     }
   },
   en: {
@@ -230,6 +243,9 @@ const I18N = {
       apiSettingsDescription: "API settings are stored only in this browser. Advanced chat and memory are separate from Normal Mode.",
       apiConfiguration: "API Configuration",
       apiKey: "API Key",
+      apiType: "API Type",
+      apiTypeCompatible: "OpenAI Compatible / Chat Completions",
+      apiTypeResponses: "OpenAI Responses",
       apiModel: "Model",
       apiBaseUrl: "API URL",
       saveSettings: "Save Settings",
@@ -239,6 +255,12 @@ const I18N = {
       userMemoryDescription: "Use one important fact per line. Sophia only carries these long-term facts into future conversations.",
       saveMemory: "Save Memory",
       clearChat: "Clear Chat"
+      ,
+      personalityProfile: "AI Personality File",
+      selectPersonalityFile: "Choose Markdown Profile",
+      resetPersonalityFile: "Restore Default Profile",
+      defaultPersonalityFile: "Default: Sophia personality.md (built-in profile)",
+      selectedPersonalityFile: "Current: {name}"
     },
     system: {
       emptyInput: "Please enter an answer first.",
@@ -276,9 +298,13 @@ const I18N = {
       aiCannotUnderstand: "看不懂",
       chatCleared: "Chat history cleared.",
       angryHintHidden: "Sophia is angry and hid the hint.",
-      angryPower: "Sophia used her study-admin powers: the word order was shuffled, and hints and answers are disabled for {count} questions.",
-      provokedReply: "…You did that just to annoy me, didn't you? Then study properly.",
+      angryPower: "Sophia quietly put the hints away: the word order was shuffled, and hints and answers are disabled for {count} questions.",
+      provokedReply: "Um… that really hurts. I don't want to argue with you, so please focus on studying for now.",
       noApiConfigured: "The API is empty or unavailable."
+      ,
+      personalityLoaded: "Loaded and saved “{name}”.",
+      personalityInvalid: "This profile could not be read. Choose a valid .md file.",
+      personalityReset: "Sophia's default profile has been restored."
     }
   },
   ja: {
@@ -371,6 +397,9 @@ const I18N = {
       apiSettingsDescription: "API設定はこのブラウザだけに保存されます。上級モードの会話と記憶は通常モードと共有されません。",
       apiConfiguration: "API設定",
       apiKey: "API Key",
+      apiType: "APIタイプ",
+      apiTypeCompatible: "OpenAI互換 / Chat Completions",
+      apiTypeResponses: "OpenAI Responses",
       apiModel: "モデル",
       apiBaseUrl: "API URL",
       saveSettings: "設定を保存",
@@ -380,6 +409,12 @@ const I18N = {
       userMemoryDescription: "重要な情報を1行ずつ入力します。ソフィアはこの長期情報だけを次の会話に持ち越します。",
       saveMemory: "記憶を保存",
       clearChat: "会話を消去"
+      ,
+      personalityProfile: "AI人格ファイル",
+      selectPersonalityFile: "Markdown人格を選択",
+      resetPersonalityFile: "既定の人格に戻す",
+      defaultPersonalityFile: "既定：ソフィア personality.md（内蔵人格）",
+      selectedPersonalityFile: "現在：{name}"
     },
     system: {
       emptyInput: "先に答えを入力してください。",
@@ -417,9 +452,13 @@ const I18N = {
       aiCannotUnderstand: "看不懂",
       chatCleared: "会話履歴を消去しました。",
       angryHintHidden: "ソフィアが怒ってヒントを隠しました。",
-      angryPower: "ソフィアが学習管理者権限を発動しました。問題順を変更し、次の{count}問はヒントと答えを使用できません。",
-      provokedReply: "……わざと怒らせたでしょう？ それなら真面目に勉強して。",
+      angryPower: "ソフィアは静かにヒントをしまいました。問題順を変更し、次の{count}問はヒントと答えを使用できません。",
+      provokedReply: "あの……そんなふうに言われると、本当に悲しいです。喧嘩はしたくないので、今は勉強に集中してください。",
       noApiConfigured: "APIが空か、利用できません。"
+      ,
+      personalityLoaded: "人格ファイル「{name}」を読み込み、保存しました。",
+      personalityInvalid: "人格ファイルを読み込めません。有効な .md ファイルを選択してください。",
+      personalityReset: "ソフィアの既定人格に戻しました。"
     }
   }
 };

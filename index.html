@@ -132,10 +132,15 @@
             <div class="form-stack">
               <label for="apiKeyInput" data-i18n="ui.apiKey">API Key</label>
               <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
+              <label for="apiTypeSelect" data-i18n="ui.apiType">接口类型</label>
+              <select id="apiTypeSelect">
+                <option value="chat_completions" data-i18n="ui.apiTypeCompatible">OpenAI 兼容 / Chat Completions</option>
+                <option value="responses" data-i18n="ui.apiTypeResponses">OpenAI Responses</option>
+              </select>
               <label for="apiModelInput" data-i18n="ui.apiModel">模型</label>
-              <input id="apiModelInput" type="text" value="gpt-5.5" />
+              <input id="apiModelInput" type="text" value="[m1]claude-sonnet-4-6" />
               <label for="apiBaseUrlInput" data-i18n="ui.apiBaseUrl">API 地址</label>
-              <input id="apiBaseUrlInput" type="url" value="https://api.openai.com/v1" />
+              <input id="apiBaseUrlInput" type="url" value="https://pro.mmw.ink/v1" />
               <div class="button-row">
                 <button id="saveApiSettingsBtn" type="button" data-i18n="ui.saveSettings">保存设置</button>
                 <button id="testApiBtn" class="secondary-btn" type="button" data-i18n="ui.testApi">测试 API</button>
@@ -194,6 +199,14 @@
             <img id="selectedCharacterImage" src="./characters/sophia/images/normal.png" alt="Sophia" />
             <h3 id="selectedCharacterName">索菲亚</h3>
             <p id="selectedCharacterDescription" class="help-text"></p>
+            <div id="personalityFilePanel" class="personality-file-panel hidden">
+              <strong data-i18n="ui.personalityProfile">AI 人设文件</strong>
+              <p id="personalityFileName" class="help-text"></p>
+              <button id="selectPersonalityFileBtn" class="secondary-btn" type="button" data-i18n="ui.selectPersonalityFile">选择 Markdown 人设</button>
+              <button id="resetPersonalityFileBtn" class="secondary-btn" type="button" data-i18n="ui.resetPersonalityFile">恢复默认人设</button>
+              <input id="personalityFileInput" class="hidden" type="file" accept=".md,.markdown,text/markdown,text/plain" />
+              <p id="personalityFileStatus" class="transfer-status" aria-live="polite"></p>
+            </div>
           </section>
           <section class="panel-card">
             <h2 data-i18n="ui.availableCharacters">可选择角色</h2>

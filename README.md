@@ -131,28 +131,40 @@
 - API 地址
 - User.md 关键记忆
 
-默认配置：
+默认配置适用于妙妙屋 OpenAI 兼容接口：
 
 ```text
-模型：gpt-5.5
-API 地址：https://api.openai.com/v1
+接口类型：OpenAI 兼容 / Chat Completions
+模型：[m1]claude-sonnet-4-6
+API 地址：https://pro.mmw.ink/v1
 ```
 
 保存后可以点击“测试 API”确认配置是否可用。
 
-项目使用 OpenAI Responses API：
+项目支持两种接口：
 
 ```text
-POST /v1/responses
+OpenAI 兼容：POST /v1/chat/completions
+OpenAI 官方 Responses：POST /v1/responses
 ```
 
-请求不会要求 OpenAI 保存响应：
+使用 OpenAI 官方 Responses 接口时，请求不会要求 OpenAI 保存响应：
 
 ```json
 {
   "store": false
 }
 ```
+
+如果使用 OpenAI 官方 API，可以改为：
+
+```text
+接口类型：OpenAI Responses
+模型：gpt-5.5
+API 地址：https://api.openai.com/v1
+```
+
+第三方中转站必须填写它实际提供的完整模型名称。模型名称中的渠道前缀不能省略。
 
 ### API Key 安全说明
 
@@ -406,11 +418,53 @@ characters/sophia/profile/
 - `好感度.md`：好感度与生气机制
 - `User.md`：用户记忆规则
 
-运行时使用的简化角色设定也保存在：
+高级模式会在运行时直接读取：
 
 ```text
-data/characters.js
+characters/sophia/profile/personality.md
 ```
+
+`personality.md` 是 AI 索菲亚说话方式和性格塑造的最高优先级来源。修改该文件后刷新页面，新的 AI 对话就会采用更新后的设定。
+
+`data/characters.js` 中的 `aiProfile` 仍然存在，但只在浏览器无法读取 `personality.md` 时作为备用设定。离线模式的固定台词仍保存在 `data/characters.js` 中。
+
+浏览器直接通过 `file://` 打开 `index.html` 时，通常会禁止网页读取本地 Markdown 文件。为了确保高级模式能够加载 `personality.md`，请使用本地 HTTP 服务器运行项目：
+
+```bash
+python -m http.server 8000
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8000
+```
+
+### 直接双击运行时选择 Markdown 人设
+
+高级模式的角色管理界面提供“选择 Markdown 人设”按钮。
+
+直接双击 `index.html` 运行时，可以：
+
+1. 进入高级模式并打开一个存档。
+2. 点击“管理角色”。
+3. 保持索菲亚为当前角色。
+4. 点击“选择 Markdown 人设”。
+5. 选择 `characters/sophia/profile/personality.md`。
+
+浏览器会在用户明确选择文件后读取内容，并将清理后的 Markdown 人设保存在当前高级存档中。以后打开这个存档时无需重复选择。
+
+初始默认角色仍是索菲亚。没有手动选择文件时，游戏会使用索菲亚的默认内置人设；通过 HTTP 运行时还会尝试自动读取项目中的 `personality.md`。
+
+AI 人设优先级：
+
+```text
+用户在角色管理页选择的 Markdown
+→ 通过 HTTP 自动读取的 personality.md
+→ data/characters.js 中的备用 aiProfile
+```
+
+选择的人设只属于当前高级模式存档，不会影响普通模式或其他高级存档。切换角色时会清除当前存档为上一角色选择的人设文件，避免不同角色误用同一份设定。
 
 ## 项目结构
 
@@ -452,6 +506,7 @@ vocab-deck-quiz/
 - 原生 JavaScript
 - 浏览器 `localStorage`
 - OpenAI Responses API
+- OpenAI-compatible Chat Completions API
 
 项目没有构建步骤，也没有第三方前端依赖。
 
@@ -470,6 +525,8 @@ js/app.js
 - 目前不能导出完整游戏存档。
 - AI 对话会产生 API 费用。
 - 高级模式需要网络连接，并可能受到浏览器跨域策略影响。
+
+为了减少等待时间和 API 消耗，AI 对话默认只携带最近 6 条消息，单次最大输出为 180 tokens；API 测试最大输出为 60 tokens。继续降低可能导致 JSON 回复被截断，从而显示“看不懂”。
 
 ## 后续可扩展方向
 
