@@ -168,3 +168,35 @@ hr {
     gap: 8px;
   }
 }
+.quiz-screen {
+  text-align: center;
+}
+
+.big-question-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 30px;
+  margin: 24px 0;
+}
+
+.question-label {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+#quiz-question-main {
+  font-size: 42px;
+  margin: 0;
+}
+
+#quiz-answer-main {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+#quiz-feedback-main {
+  font-size: 20px;
+  font-weight: bold;
+  min-height: 28px;
+}

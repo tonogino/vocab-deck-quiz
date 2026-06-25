@@ -33,6 +33,16 @@ const submitAnswerBtn = document.getElementById("submit-answer-btn");
 const nextQuestionBtn = document.getElementById("next-question-btn");
 const quizResult = document.getElementById("quiz-result");
 
+const quizPage = document.getElementById("quiz-page");
+
+const exitQuizBtn = document.getElementById("exit-quiz-btn");
+const quizDeckTitle = document.getElementById("quiz-deck-title");
+const quizProgress = document.getElementById("quiz-progress");
+const quizQuestionMain = document.getElementById("quiz-question-main");
+const quizAnswerMain = document.getElementById("quiz-answer-main");
+const quizSubmitMain = document.getElementById("quiz-submit-main");
+const quizNextMain = document.getElementById("quiz-next-main");
+const quizFeedbackMain = document.getElementById("quiz-feedback-main");
 // ---------- Data ----------
 
 function saveData() {
@@ -240,7 +250,62 @@ function startQuiz() {
     return;
   }
 
-  pickRandomWord();
+  wordPage.classList.add("hidden");
+  quizPage.classList.remove("hidden");
+
+  quizDeckTitle.textContent = `${deck.name} Quiz`;
+  quizProgress.textContent = `${deck.words.length} words in this deck`;
+
+  pickRandomWordMain();
+}
+
+function pickRandomWordMain() {
+  const deck = getCurrentDeck();
+
+  if (!deck || deck.words.length === 0) return;
+
+  const randomIndex = Math.floor(Math.random() * deck.words.length);
+  currentQuizWord = deck.words[randomIndex];
+
+  quizQuestionMain.textContent = currentQuizWord.word;
+  quizAnswerMain.value = "";
+  quizFeedbackMain.textContent = "";
+  quizAnswerMain.focus();
+}
+
+function submitAnswerMain() {
+  if (!currentQuizWord) {
+    return;
+  }
+
+  const userAnswer = quizAnswerMain.value.trim();
+  const correctAnswer = currentQuizWord.meaning.trim();
+
+  if (userAnswer === "") {
+    quizFeedbackMain.textContent = "Please type your answer.";
+    quizFeedbackMain.style.color = "#666";
+    return;
+  }
+
+  if (userAnswer === correctAnswer) {
+    quizFeedbackMain.textContent = "Correct!";
+    quizFeedbackMain.style.color = "green";
+    currentQuizWord.correctCount++;
+  } else {
+    quizFeedbackMain.textContent = `Wrong. Correct answer: ${correctAnswer}`;
+    quizFeedbackMain.style.color = "red";
+    currentQuizWord.wrongCount++;
+  }
+
+  saveData();
+}
+
+function exitQuiz() {
+  quizPage.classList.add("hidden");
+  wordPage.classList.remove("hidden");
+
+  currentQuizWord = null;
+  renderCurrentDeck();
 }
 
 function pickRandomWord() {
@@ -294,7 +359,19 @@ addWordBtn.addEventListener("click", addWord);
 startQuizBtn.addEventListener("click", startQuiz);
 submitAnswerBtn.addEventListener("click", submitAnswer);
 nextQuestionBtn.addEventListener("click", pickRandomWord);
+exitQuizBtn.addEventListener("click", exitQuiz);
+quizSubmitMain.addEventListener("click", submitAnswerMain);
+quizNextMain.addEventListener("click", pickRandomWordMain);
 
+quizAnswerMain.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    if (quizFeedbackMain.textContent === "") {
+      submitAnswerMain();
+    } else {
+      pickRandomWordMain();
+    }
+  }
+});
 newDeckNameInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     createDeck();
