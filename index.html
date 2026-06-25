@@ -1,96 +1,118 @@
-<!-- index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vocab Deck Quiz</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Sophia Vocabulary Galgame V2</title>
+  <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
-  <div class="app-container">
-    <header>
-      <h1>Vocab Deck Quiz</h1>
-      <p>Create word decks and practice with random quizzes.</p>
-    </header>
-
-    <!-- Deck Selection Page -->
-    <main id="deck-page" class="page">
-      <section class="card">
-        <h2>Select a Deck</h2>
-
-        <div class="input-row">
-          <input id="new-deck-name" type="text" placeholder="New deck name..." />
-          <button id="create-deck-btn">Create Deck</button>
+  <main id="app" class="app">
+    <section id="startScreen" class="screen active">
+      <div class="start-card">
+        <div class="game-logo">
+          <p class="logo-kana">ことばの部屋</p>
+          <h1>索菲亚单词小屋</h1>
+          <p>Vocabulary Galgame · Version 2</p>
         </div>
-
-        <div id="deck-list" class="deck-list"></div>
-      </section>
-    </main>
-
-    <!-- Deck Detail Page -->
-    <main id="word-page" class="page hidden">
-      <section class="card">
-        <button id="back-btn" class="secondary-btn">← Back to Decks</button>
-        <h2 id="current-deck-title">Deck Name</h2>
-        <p id="word-count">0 words</p>
-
-        <hr />
-
-        <h3>Add Word</h3>
-        <div class="input-column">
-          <input id="word-input" type="text" placeholder="Word, e.g. apple" />
-          <input id="meaning-input" type="text" placeholder="Meaning, e.g. 苹果" />
-          <button id="add-word-btn">Add Word</button>
+        <div class="start-grid">
+          <section class="panel-card">
+            <div class="section-title-row">
+              <h2>选择存档</h2>
+              <button id="createSaveBtn" type="button">新建存档</button>
+            </div>
+            <div id="saveSlotList" class="save-slot-list"></div>
+          </section>
+          <section class="panel-card">
+            <h2>说明</h2>
+            <p class="help-text">第二版加入多存档、共享词库、词库选择和好感度事件。每个存档的学习进度独立保存，但词库会在所有存档之间共享。</p>
+            <p class="help-text">图片仍然放在 <code>characters/sophia/images/</code>。建议使用透明背景 PNG。</p>
+          </section>
         </div>
-
-        <hr />
-
-        <h3>Quiz</h3>
-        <div id="quiz-box" class="quiz-box">
-          <p id="quiz-question">Click Start Quiz to begin.</p>
-          <input id="answer-input" type="text" placeholder="Type the meaning..." />
-          <div class="button-row">
-            <button id="start-quiz-btn">Start Quiz</button>
-            <button id="submit-answer-btn">Submit Answer</button>
-            <button id="next-question-btn">Next</button>
-          </div>
-          <p id="quiz-result"></p>
-        </div>
-
-        <hr />
-
-        <h3>Words in This Deck</h3>
-        <div id="word-list" class="word-list"></div>
-      </section>
-    </main>
-  </div>
-    <main id="quiz-page" class="page hidden">
-    <section class="card quiz-screen">
-        <button id="exit-quiz-btn" class="secondary-btn">← Exit Quiz</button>
-
-        <h2 id="quiz-deck-title">Quiz</h2>
-        <p id="quiz-progress">Ready to practice</p>
-        <p id="quiz-stats">
-        Correct: 0 | Wrong: 0
-        </p>
-        
-        <div class="big-question-card">
-        <p class="question-label">What does this mean?</p>
-        <h1 id="quiz-question-main">word</h1>
-        </div>
-
-        <input id="quiz-answer-main" type="text" placeholder="Type the meaning..." />
-
-        <div class="button-row">
-        <button id="quiz-action-btn">Submit</button>
-        </div>
-
-        <p id="quiz-feedback-main"></p>
+      </div>
     </section>
-    </main>
-  <script src="script.js">
 
-  </script>
+    <section id="gameScreen" class="screen">
+      <section class="left-panel">
+        <header class="top-bar">
+          <div>
+            <p class="logo-kana small">ことばの部屋</p>
+            <h1>索菲亚单词小屋</h1>
+            <p id="currentSaveName">当前存档：-</p>
+          </div>
+          <div class="top-actions">
+            <button id="eventBtn" type="button">好感度事件</button>
+            <button id="libraryBtn" class="secondary-btn" type="button">词库管理</button>
+            <button id="backToStartBtn" class="secondary-btn" type="button">返回标题</button>
+          </div>
+        </header>
+        <section class="status-card">
+          <div><span class="label">角色</span><strong id="characterName">索菲亚</strong></div>
+          <div><span class="label">好感度</span><strong><span id="affectionValue">0</span> / 100</strong></div>
+          <div><span class="label">关系</span><strong id="affectionLevel">陌生</strong></div>
+        </section>
+        <section class="study-card">
+          <div class="progress-row"><span id="wordCounter">Word 1 / 1</span><span id="correctRate">正确率 0%</span></div>
+          <article class="word-box">
+            <p class="small-title">请写出这个单词的中文意思</p>
+            <h2 id="wordText">loading</h2>
+            <p id="wordHint">Hint</p>
+          </article>
+          <div class="answer-row">
+            <input id="answerInput" type="text" placeholder="输入中文意思，例如：苹果" autocomplete="off" />
+            <button id="submitBtn" type="button">确认</button>
+          </div>
+          <div class="button-row">
+            <button id="showAnswerBtn" class="secondary-btn" type="button">显示答案</button>
+            <button id="nextBtn" class="secondary-btn" type="button">下一个</button>
+          </div>
+          <p id="feedbackText" class="feedback">准备开始吧。</p>
+        </section>
+      </section>
+      <section class="right-panel">
+        <div class="character-stage"><img id="characterImage" src="./characters/sophia/images/normal.png" alt="Sophia" /></div>
+        <section class="dialogue-box">
+          <div class="speaker-row"><strong id="speakerName">索菲亚</strong><span>点击角色互动</span></div>
+          <p id="dialogueText">欢迎回来。今天也一起背几个单词吧。</p>
+        </section>
+      </section>
+    </section>
+
+    <section id="libraryScreen" class="screen">
+      <div class="management-card">
+        <div class="management-header">
+          <div><p class="logo-kana small">ことばリスト</p><h1>词库管理</h1><p>词库是全局共享的。你可以给当前存档选择多个词库。</p></div>
+          <button id="closeLibraryBtn" class="secondary-btn" type="button">回到主界面</button>
+        </div>
+        <div class="management-grid">
+          <section class="panel-card"><h2>当前存档启用的词库</h2><div id="librarySelectList" class="library-select-list"></div><p id="libraryHint" class="help-text"></p></section>
+          <section class="panel-card"><h2>创建新词库</h2><div class="form-stack"><input id="newLibraryNameInput" type="text" placeholder="词库名字，例如：四级核心词" /><button id="createLibraryBtn" type="button">创建词库</button></div></section>
+          <section class="panel-card wide"><h2>给词库添加单词</h2><div class="form-grid"><select id="wordLibrarySelect"></select><input id="newWordInput" type="text" placeholder="英文单词，例如：moonlight" /><input id="newAnswerInput" type="text" placeholder="中文意思，例如：月光；月色" /><input id="newHintInput" type="text" placeholder="提示，可不填" /><button id="addWordBtn" type="button">加入词库</button></div></section>
+          <section class="panel-card wide"><h2>词库内容</h2><div id="libraryWordList" class="library-word-list"></div></section>
+        </div>
+      </div>
+    </section>
+
+    <section id="eventScreen" class="screen">
+      <div class="event-layout">
+        <section id="eventListPanel" class="panel-card event-list-panel">
+          <div class="management-header compact"><div><p class="logo-kana small">きずなイベント</p><h1>好感度事件</h1><p>达到指定好感度后解锁。完成事件会记录在当前存档里。</p></div><button id="closeEventBtn" class="secondary-btn" type="button">回到主界面</button></div>
+          <div id="eventList" class="event-list"></div>
+        </section>
+        <section id="eventPlayPanel" class="event-play-panel hidden">
+          <div class="event-scene"><img id="eventCharacterImage" src="./characters/sophia/images/normal.png" alt="Sophia" /></div>
+          <div class="event-dialogue-box">
+            <div class="speaker-row"><strong id="eventSpeakerName">索菲亚</strong><span id="eventProgressText">Event</span></div>
+            <p id="eventDialogueText"></p>
+            <div class="button-row"><button id="eventNextLineBtn" type="button">继续</button><button id="eventExitBtn" class="secondary-btn" type="button">中途退出</button></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script src="./data/characters.js"></script>
+  <script src="./data/vocab-libraries.js"></script>
+  <script src="./data/events.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
