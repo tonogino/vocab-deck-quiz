@@ -24,6 +24,17 @@
           <h1 data-i18n="ui.title">索菲亚单词小屋</h1>
           <p data-i18n="ui.subtitle">Vocabulary Galgame · Version 2</p>
         </div>
+        <section class="mode-picker" aria-label="Game mode">
+          <button id="normalModeBtn" class="mode-card selected" type="button">
+            <strong data-i18n="ui.normalMode">普通模式</strong>
+            <span data-i18n="ui.normalModeDescription">完全离线，不消耗 API。</span>
+          </button>
+          <button id="advancedModeBtn" class="mode-card advanced" type="button">
+            <strong data-i18n="ui.advancedMode">高级模式：API 消耗模式</strong>
+            <span data-i18n="ui.advancedModeDescription">启用 AI 索菲亚、对话与本地记忆。</span>
+          </button>
+        </section>
+        <p id="modeNotice" class="mode-notice"></p>
         <div class="start-grid">
           <section class="panel-card">
             <div class="section-title-row">
@@ -56,6 +67,7 @@
               <option value="ja">日本語</option>
             </select>
             <button id="eventBtn" type="button" data-i18n="ui.events">好感度事件</button>
+            <button id="settingsBtn" class="secondary-btn hidden" type="button" data-i18n="ui.settings">设置</button>
             <button id="libraryBtn" class="secondary-btn" type="button" data-i18n="ui.libraries">词库管理</button>
             <button id="characterBtn" class="secondary-btn" type="button" data-i18n="ui.characters">管理角色</button>
             <button id="backToStartBtn" class="secondary-btn" type="button" data-i18n="ui.backToTitle">返回标题</button>
@@ -90,7 +102,59 @@
           <div class="speaker-row"><strong id="speakerName">索菲亚</strong><span data-i18n="ui.clickCharacter">点击角色互动</span></div>
           <p id="dialogueText"></p>
         </section>
+        <section id="aiChatPanel" class="ai-chat-panel hidden">
+          <div class="ai-chat-header">
+            <strong data-i18n="ui.chatWithSophia">与索菲亚对话</strong>
+            <span id="aiStatusText" data-i18n="ui.aiReady">AI 模式</span>
+          </div>
+          <div id="aiChatLog" class="ai-chat-log" aria-live="polite"></div>
+          <div class="ai-chat-input-row">
+            <textarea id="aiChatInput" rows="2" data-i18n-placeholder="ui.chatPlaceholder"></textarea>
+            <button id="aiSendBtn" type="button" data-i18n="ui.send">发送</button>
+          </div>
+        </section>
       </section>
+    </section>
+
+    <section id="settingsScreen" class="screen">
+      <div class="management-card">
+        <div class="management-header">
+          <div>
+            <p class="logo-kana small">AI SETTINGS</p>
+            <h1 data-i18n="ui.settings">设置</h1>
+            <p data-i18n="ui.apiSettingsDescription"></p>
+          </div>
+          <button id="closeSettingsBtn" class="secondary-btn" type="button" data-i18n="ui.backToMain">回到主界面</button>
+        </div>
+        <div class="management-grid">
+          <section class="panel-card">
+            <h2 data-i18n="ui.apiConfiguration">API 配置</h2>
+            <div class="form-stack">
+              <label for="apiKeyInput" data-i18n="ui.apiKey">API Key</label>
+              <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
+              <label for="apiModelInput" data-i18n="ui.apiModel">模型</label>
+              <input id="apiModelInput" type="text" value="gpt-5.5" />
+              <label for="apiBaseUrlInput" data-i18n="ui.apiBaseUrl">API 地址</label>
+              <input id="apiBaseUrlInput" type="url" value="https://api.openai.com/v1" />
+              <div class="button-row">
+                <button id="saveApiSettingsBtn" type="button" data-i18n="ui.saveSettings">保存设置</button>
+                <button id="testApiBtn" class="secondary-btn" type="button" data-i18n="ui.testApi">测试 API</button>
+              </div>
+              <p id="apiTestStatus" class="transfer-status" aria-live="polite"></p>
+              <p class="security-warning" data-i18n="ui.apiSecurityWarning"></p>
+            </div>
+          </section>
+          <section class="panel-card">
+            <h2 data-i18n="ui.userMemory">User.md 记忆</h2>
+            <p class="help-text" data-i18n="ui.userMemoryDescription"></p>
+            <textarea id="userMemoryInput" class="memory-editor" rows="12"></textarea>
+            <div class="button-row">
+              <button id="saveUserMemoryBtn" type="button" data-i18n="ui.saveMemory">保存记忆</button>
+              <button id="clearChatBtn" class="secondary-btn" type="button" data-i18n="ui.clearChat">清空对话</button>
+            </div>
+          </section>
+        </div>
+      </div>
     </section>
 
     <section id="libraryScreen" class="screen">
