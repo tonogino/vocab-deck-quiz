@@ -3,6 +3,7 @@
 let decks = [];
 let currentDeckId = null;
 let currentQuizWord = null;
+let waitingForNext = false;
 
 const STORAGE_KEY = "vocabDeckQuizData";
 
@@ -40,9 +41,10 @@ const quizDeckTitle = document.getElementById("quiz-deck-title");
 const quizProgress = document.getElementById("quiz-progress");
 const quizQuestionMain = document.getElementById("quiz-question-main");
 const quizAnswerMain = document.getElementById("quiz-answer-main");
-const quizSubmitMain = document.getElementById("quiz-submit-main");
-const quizNextMain = document.getElementById("quiz-next-main");
+const quizActionBtn =
+    document.getElementById("quiz-action-btn");
 const quizFeedbackMain = document.getElementById("quiz-feedback-main");
+const quizStats = document.getElementById("quiz-stats");
 // ---------- Data ----------
 
 function saveData() {
@@ -271,33 +273,64 @@ function pickRandomWordMain() {
   quizAnswerMain.value = "";
   quizFeedbackMain.textContent = "";
   quizAnswerMain.focus();
+  quizStats.textContent = `Correct: ${currentQuizWord.correctCount} | Wrong: ${currentQuizWord.wrongCount}`;
 }
 
 function submitAnswerMain() {
-  if (!currentQuizWord) {
-    return;
-  }
 
-  const userAnswer = quizAnswerMain.value.trim();
-  const correctAnswer = currentQuizWord.meaning.trim();
+    if (!currentQuizWord) return;
 
-  if (userAnswer === "") {
-    quizFeedbackMain.textContent = "Please type your answer.";
-    quizFeedbackMain.style.color = "#666";
-    return;
-  }
+    const userAnswer =
+        quizAnswerMain.value.trim();
 
-  if (userAnswer === correctAnswer) {
-    quizFeedbackMain.textContent = "Correct!";
-    quizFeedbackMain.style.color = "green";
-    currentQuizWord.correctCount++;
-  } else {
-    quizFeedbackMain.textContent = `Wrong. Correct answer: ${correctAnswer}`;
-    quizFeedbackMain.style.color = "red";
-    currentQuizWord.wrongCount++;
-  }
+    const correctAnswer =
+        currentQuizWord.meaning.trim();
 
-  saveData();
+    if (userAnswer === "") return;
+
+    if (userAnswer.toLowerCase() ===
+        correctAnswer.toLowerCase()) {
+
+        quizFeedbackMain.textContent =
+            "✅ Correct!";
+
+        quizFeedbackMain.style.color = "green";
+
+        currentQuizWord.correctCount++;
+
+    } else {
+
+        quizFeedbackMain.innerHTML =
+            `❌ Wrong<br>
+            Correct answer: <b>${correctAnswer}</b>`;
+
+        quizFeedbackMain.style.color = "red";
+
+        currentQuizWord.wrongCount++;
+    }
+
+    saveData();
+
+    waitingForNext = true;
+
+    quizActionBtn.textContent = "Next";
+}
+
+function handleQuizButton() {
+
+    if (waitingForNext) {
+
+        pickRandomWordMain();
+
+        waitingForNext = false;
+
+        quizActionBtn.textContent = "Submit";
+
+    } else {
+
+        submitAnswerMain();
+
+    }
 }
 
 function exitQuiz() {
@@ -362,6 +395,39 @@ nextQuestionBtn.addEventListener("click", pickRandomWord);
 exitQuizBtn.addEventListener("click", exitQuiz);
 quizSubmitMain.addEventListener("click", submitAnswerMain);
 quizNextMain.addEventListener("click", pickRandomWordMain);
+
+quizActionBtn.addEventListener(
+    "click",
+    handleQuizButton
+);
+
+quizAnswerMain.addEventListener(
+    "keydown",
+    e => {
+
+        if (e.key === "Enter") {
+
+            handleQuizButton();
+
+        }
+
+    }
+);
+
+document.querySelector(
+".big-question-card"
+).className =
+"big-question-card correct-animation";
+
+document.querySelector(
+".big-question-card"
+).className =
+"big-question-card wrong-animation";
+
+document.querySelector(
+".big-question-card"
+).className =
+"big-question-card";
 
 quizAnswerMain.addEventListener("keydown", event => {
   if (event.key === "Enter") {
