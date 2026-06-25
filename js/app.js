@@ -1,33 +1,77 @@
 const SAVE_SLOTS_KEY = "sophia_v2_save_slots";
 const ACTIVE_SAVE_KEY = "sophia_v2_active_save_id";
 const VOCAB_LIBRARIES_KEY = "sophia_v2_vocab_libraries";
+const LANGUAGE_KEY = "sophia_v2_language";
+const DATA_VERSION_KEY = "sophia_v2_data_version";
 
 const state = {
   activeSaveId: null,
   activeEventId: null,
   eventLineIndex: 0,
-  words: []
+  words: [],
+  language: localStorage.getItem(LANGUAGE_KEY) || "zh",
+  questionLocked: false,
+  advancing: false,
+  advanceTimer: null
 };
 
 const $ = id => document.getElementById(id);
-
 const el = {
-  startScreen: $("startScreen"), gameScreen: $("gameScreen"), libraryScreen: $("libraryScreen"), eventScreen: $("eventScreen"),
-  saveSlotList: $("saveSlotList"), createSaveBtn: $("createSaveBtn"), currentSaveName: $("currentSaveName"), backToStartBtn: $("backToStartBtn"), libraryBtn: $("libraryBtn"), eventBtn: $("eventBtn"),
-  characterName: $("characterName"), affectionValue: $("affectionValue"), affectionLevel: $("affectionLevel"), wordCounter: $("wordCounter"), correctRate: $("correctRate"), wordText: $("wordText"), wordHint: $("wordHint"), answerInput: $("answerInput"), submitBtn: $("submitBtn"), showAnswerBtn: $("showAnswerBtn"), nextBtn: $("nextBtn"), feedbackText: $("feedbackText"), characterImage: $("characterImage"), speakerName: $("speakerName"), dialogueText: $("dialogueText"),
-  closeLibraryBtn: $("closeLibraryBtn"), librarySelectList: $("librarySelectList"), libraryHint: $("libraryHint"), newLibraryNameInput: $("newLibraryNameInput"), createLibraryBtn: $("createLibraryBtn"), wordLibrarySelect: $("wordLibrarySelect"), newWordInput: $("newWordInput"), newAnswerInput: $("newAnswerInput"), newHintInput: $("newHintInput"), addWordBtn: $("addWordBtn"), libraryWordList: $("libraryWordList"),
-  closeEventBtn: $("closeEventBtn"), eventList: $("eventList"), eventListPanel: $("eventListPanel"), eventPlayPanel: $("eventPlayPanel"), eventCharacterImage: $("eventCharacterImage"), eventSpeakerName: $("eventSpeakerName"), eventProgressText: $("eventProgressText"), eventDialogueText: $("eventDialogueText"), eventNextLineBtn: $("eventNextLineBtn"), eventExitBtn: $("eventExitBtn")
+  startScreen: $("startScreen"), gameScreen: $("gameScreen"), libraryScreen: $("libraryScreen"),
+  characterScreen: $("characterScreen"), eventScreen: $("eventScreen"),
+  languageSelect: $("languageSelect"), gameLanguageSelect: $("gameLanguageSelect"),
+  saveSlotList: $("saveSlotList"), createSaveBtn: $("createSaveBtn"),
+  currentSaveName: $("currentSaveName"), backToStartBtn: $("backToStartBtn"), libraryBtn: $("libraryBtn"),
+  characterBtn: $("characterBtn"), eventBtn: $("eventBtn"), characterName: $("characterName"),
+  affectionValue: $("affectionValue"), affectionLevel: $("affectionLevel"), wordCounter: $("wordCounter"),
+  correctRate: $("correctRate"), wordText: $("wordText"), wordHint: $("wordHint"), answerInput: $("answerInput"),
+  submitBtn: $("submitBtn"), showAnswerBtn: $("showAnswerBtn"), nextBtn: $("nextBtn"),
+  feedbackText: $("feedbackText"), characterImage: $("characterImage"), speakerName: $("speakerName"),
+  dialogueText: $("dialogueText"), closeLibraryBtn: $("closeLibraryBtn"), librarySelectList: $("librarySelectList"),
+  libraryHint: $("libraryHint"), newLibraryNameInput: $("newLibraryNameInput"), createLibraryBtn: $("createLibraryBtn"),
+  wordLibrarySelect: $("wordLibrarySelect"), newWordInput: $("newWordInput"), newAnswerInput: $("newAnswerInput"),
+  newHintInput: $("newHintInput"), addWordBtn: $("addWordBtn"), libraryWordList: $("libraryWordList"),
+  exportLibrariesBtn: $("exportLibrariesBtn"), importLibrariesBtn: $("importLibrariesBtn"),
+  libraryFileInput: $("libraryFileInput"), libraryTransferStatus: $("libraryTransferStatus"),
+  closeCharacterBtn: $("closeCharacterBtn"), selectedCharacterImage: $("selectedCharacterImage"),
+  selectedCharacterName: $("selectedCharacterName"), selectedCharacterDescription: $("selectedCharacterDescription"),
+  characterSelectList: $("characterSelectList"), closeEventBtn: $("closeEventBtn"), eventList: $("eventList"),
+  eventListPanel: $("eventListPanel"), eventPlayPanel: $("eventPlayPanel"),
+  eventCharacterImage: $("eventCharacterImage"), eventSpeakerName: $("eventSpeakerName"),
+  eventProgressText: $("eventProgressText"), eventDialogueText: $("eventDialogueText"),
+  eventNextLineBtn: $("eventNextLineBtn"), eventExitBtn: $("eventExitBtn")
 };
 
 function createId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`; }
 function safeParse(raw, fallback) { try { return JSON.parse(raw) ?? fallback; } catch { return fallback; } }
-function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+function clamp(number, min, max) { return Math.max(min, Math.min(max, number)); }
 function pickRandom(list) { return list[Math.floor(Math.random() * list.length)]; }
-function escapeHtml(text) { return String(text).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
-function normalizeAnswer(text) { return text.trim().toLowerCase().replace(/[，。！？、,.!?；;]/g, "").replace(/\s+/g, ""); }
-function parseAnswerList(text) { return text.split(/[;；,，\/、]/).map(item => item.trim()).filter(Boolean); }
+function escapeHtml(text) {
+  return String(text).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+function normalizeAnswer(text) {
+  return text.trim().toLowerCase().replace(/[，。！？、,.!?]/g, "").replace(/\s+/g, "");
+}
+function parseAnswerList(text) { return text.split(/[;；,，、/]/).map(item => item.trim()).filter(Boolean); }
+function interpolate(text, values = {}) {
+  return String(text).replace(/\{(\w+)\}/g, (_, key) => values[key] ?? `{${key}}`);
+}
+function t(path, values) {
+  const parts = path.split(".");
+  let value = I18N[state.language] || I18N.zh;
+  for (const part of parts) value = value?.[part];
+  if (value === undefined) {
+    value = I18N.zh;
+    for (const part of parts) value = value?.[part];
+  }
+  return interpolate(value ?? path, values);
+}
 
-function loadSaveSlots() { const saves = safeParse(localStorage.getItem(SAVE_SLOTS_KEY), []); return Array.isArray(saves) ? saves : []; }
+function loadSaveSlots() {
+  const saves = safeParse(localStorage.getItem(SAVE_SLOTS_KEY), []);
+  return Array.isArray(saves) ? saves : [];
+}
 function saveSaveSlots(saves) { localStorage.setItem(SAVE_SLOTS_KEY, JSON.stringify(saves)); }
 function getActiveSave() { return loadSaveSlots().find(save => save.id === state.activeSaveId) || null; }
 function updateActiveSave(updater) {
@@ -40,45 +84,186 @@ function updateActiveSave(updater) {
 }
 
 function ensureVocabLibraries() {
-  if (localStorage.getItem(VOCAB_LIBRARIES_KEY)) return;
-  localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify(DEFAULT_VOCAB_LIBRARIES.map(library => ({ ...library }))));
+  const existing = safeParse(localStorage.getItem(VOCAB_LIBRARIES_KEY), []);
+  if (!Array.isArray(existing) || !existing.length) {
+    localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify(DEFAULT_VOCAB_LIBRARIES));
+    return;
+  }
+  if (localStorage.getItem(DATA_VERSION_KEY) !== "3") {
+    const customLibraries = existing.filter(library => library.id !== "default_basic");
+    localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify([...DEFAULT_VOCAB_LIBRARIES, ...customLibraries]));
+    localStorage.setItem(DATA_VERSION_KEY, "3");
+  }
 }
-function loadLibraries() { ensureVocabLibraries(); const libraries = safeParse(localStorage.getItem(VOCAB_LIBRARIES_KEY), []); return Array.isArray(libraries) ? libraries : []; }
+function loadLibraries() {
+  ensureVocabLibraries();
+  const libraries = safeParse(localStorage.getItem(VOCAB_LIBRARIES_KEY), []);
+  return Array.isArray(libraries) ? libraries : [];
+}
 function saveLibraries(libraries) { localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify(libraries)); }
+
+function sanitizeFilename(name) {
+  return String(name).replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/\s+/g, "-").slice(0, 80);
+}
+function normalizeImportedWord(item) {
+  if (!item || typeof item !== "object") return null;
+  const word = typeof item.word === "string" ? item.word.trim() : "";
+  const rawAnswers = Array.isArray(item.answer) ? item.answer : typeof item.answer === "string" ? [item.answer] : [];
+  const answer = rawAnswers.map(value => String(value).trim()).filter(Boolean);
+  if (!word || !answer.length) return null;
+  return {
+    word,
+    answer: [...new Set(answer)],
+    hint: typeof item.hint === "string" && item.hint.trim() ? item.hint.trim() : t("system.customWordHint")
+  };
+}
+function uniqueLibraryName(name, libraries) {
+  const base = String(name || t("system.importedLibraryName")).trim() || t("system.importedLibraryName");
+  const names = new Set(libraries.map(library => library.name));
+  if (!names.has(base)) return base;
+  let index = 2;
+  while (names.has(`${base} (${index})`)) index++;
+  return `${base} (${index})`;
+}
+function extractJsonArrayFromJs(source) {
+  const assignment = source.match(/\b(?:const|let|var)\s+WORDS\s*=\s*/);
+  if (!assignment) throw new Error("WORDS assignment not found");
+  const start = source.indexOf("[", assignment.index + assignment[0].length);
+  if (start < 0) throw new Error("WORDS array not found");
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  for (let index = start; index < source.length; index++) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === "[") depth++;
+    if (character === "]") {
+      depth--;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  throw new Error("Unclosed WORDS array");
+}
+function parseLibraryFile(source, filename) {
+  const trimmed = source.replace(/^\uFEFF/, "").trim();
+  let parsed;
+  if (filename.toLowerCase().endsWith(".js")) {
+    parsed = JSON.parse(extractJsonArrayFromJs(trimmed));
+  } else {
+    parsed = JSON.parse(trimmed);
+  }
+  if (Array.isArray(parsed)) {
+    if (parsed.every(item => item && Array.isArray(item.words))) return parsed;
+    return [{ name: filename.replace(/\.(json|js)$/i, "") || t("system.importedLibraryName"), words: parsed }];
+  }
+  if (parsed && Array.isArray(parsed.libraries)) return parsed.libraries;
+  if (parsed && Array.isArray(parsed.words)) return [parsed];
+  throw new Error("Unsupported library structure");
+}
+function setLibraryTransferStatus(message, isError = false) {
+  el.libraryTransferStatus.textContent = message;
+  el.libraryTransferStatus.classList.toggle("error", isError);
+}
+
+function applyTranslations() {
+  document.documentElement.lang = state.language === "zh" ? "zh-CN" : state.language;
+  document.title = t("ui.title");
+  el.languageSelect.value = state.language;
+  el.gameLanguageSelect.value = state.language;
+  document.querySelectorAll("[data-i18n]").forEach(node => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(node => {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  });
+}
+function setLanguage(language) {
+  if (!I18N[language]) return;
+  state.language = language;
+  localStorage.setItem(LANGUAGE_KEY, language);
+  applyTranslations();
+  renderCurrentScreen();
+  if (el.gameScreen.classList.contains("active")) {
+    const word = getCurrentWord();
+    el.feedbackText.textContent = state.questionLocked && word
+      ? t("system.revealed", { answer: word.answer.join(" / ") })
+      : t("ui.ready");
+  }
+}
+function renderCurrentScreen() {
+  if (el.startScreen.classList.contains("active")) renderStartScreen();
+  if (el.gameScreen.classList.contains("active")) renderGame();
+  if (el.libraryScreen.classList.contains("active")) renderLibraryScreen();
+  if (el.characterScreen.classList.contains("active")) renderCharacterScreen();
+  if (el.eventScreen.classList.contains("active")) {
+    if (state.activeEventId) renderEventLine();
+    else renderEventScreen();
+  }
+}
 
 function createNewSave() {
   const saves = loadSaveSlots();
   const save = {
-    id: createId("save"), name: `存档 ${saves.length + 1}`, characterId: "sophia",
+    id: createId("save"), name: `${t("ui.save")} ${saves.length + 1}`, characterId: "sophia",
     affection: 0, currentIndex: 0, totalAnswered: 0, correctAnswered: 0,
     finishedEvents: [], selectedLibraries: ["default_basic"],
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
-  saves.push(save); saveSaveSlots(saves);
-  state.activeSaveId = save.id; localStorage.setItem(ACTIVE_SAVE_KEY, save.id);
+  saves.push(save);
+  saveSaveSlots(saves);
+  state.activeSaveId = save.id;
+  localStorage.setItem(ACTIVE_SAVE_KEY, save.id);
   enterGame();
 }
-function selectSave(saveId) { state.activeSaveId = saveId; localStorage.setItem(ACTIVE_SAVE_KEY, saveId); enterGame(); }
+function selectSave(saveId) {
+  state.activeSaveId = saveId;
+  localStorage.setItem(ACTIVE_SAVE_KEY, saveId);
+  enterGame();
+}
 function deleteSave(saveId) {
-  const target = loadSaveSlots().find(save => save.id === saveId); if (!target) return;
-  if (!confirm(`确定删除「${target.name}」吗？这个操作不会删除词库。`)) return;
+  const target = loadSaveSlots().find(save => save.id === saveId);
+  if (!target || !confirm(t("system.deleteSaveConfirm", { name: target.name }))) return;
   saveSaveSlots(loadSaveSlots().filter(save => save.id !== saveId));
-  if (state.activeSaveId === saveId) { state.activeSaveId = null; localStorage.removeItem(ACTIVE_SAVE_KEY); }
+  if (state.activeSaveId === saveId) {
+    state.activeSaveId = null;
+    localStorage.removeItem(ACTIVE_SAVE_KEY);
+  }
   renderStartScreen();
 }
 function renameSave(saveId) {
-  const saves = loadSaveSlots(); const target = saves.find(save => save.id === saveId); if (!target) return;
-  const name = prompt("请输入新的存档名：", target.name); if (!name || !name.trim()) return;
-  target.name = name.trim(); target.updatedAt = new Date().toISOString(); saveSaveSlots(saves); renderStartScreen();
+  const saves = loadSaveSlots();
+  const target = saves.find(save => save.id === saveId);
+  if (!target) return;
+  const name = prompt(t("system.renameSavePrompt"), target.name);
+  if (!name?.trim()) return;
+  target.name = name.trim();
+  target.updatedAt = new Date().toISOString();
+  saveSaveSlots(saves);
+  renderStartScreen();
 }
 
-function getCharacter() { const save = getActiveSave(); return CHARACTERS[save?.characterId || "sophia"]; }
+function getCharacter() {
+  const save = getActiveSave();
+  return CHARACTERS[save?.characterId] || CHARACTERS.sophia;
+}
 function getAffectionLevel(affection) {
-  let current = getCharacter().affectionLevels[0];
-  for (const level of getCharacter().affectionLevels) if (affection >= level.min) current = level;
+  const character = getCharacter();
+  let current = character.affectionLevels[0];
+  for (const level of character.affectionLevels) if (affection >= level.min) current = level;
   return current.name;
 }
-function getCorrectRate(save) { return !save || save.totalAnswered === 0 ? 0 : Math.round((save.correctAnswered / save.totalAnswered) * 100); }
+function getCorrectRate(save) {
+  return !save || save.totalAnswered === 0 ? 0 : Math.round((save.correctAnswered / save.totalAnswered) * 100);
+}
 function getSelectedWords(save) {
   const selected = new Set(save.selectedLibraries || []);
   const words = [];
@@ -86,40 +271,72 @@ function getSelectedWords(save) {
     if (!selected.has(library.id)) return;
     library.words.forEach(word => words.push({ ...word, libraryId: library.id, libraryName: library.name }));
   });
-  return words.length ? words : [{ word: "empty", answer: ["空"], hint: "当前存档没有启用任何词库，或者词库里没有单词。", libraryId: "system", libraryName: "系统" }];
+  return words.length ? words : [{
+    word: t("system.emptyLibraryWord"), answer: [""], hint: t("system.emptyLibraryHint"),
+    libraryId: "system", libraryName: "System", unavailable: true
+  }];
 }
 function refreshWords() {
-  const save = getActiveSave(); if (!save) { state.words = []; return; }
+  const save = getActiveSave();
+  if (!save) { state.words = []; return; }
   state.words = getSelectedWords(save);
-  if (save.currentIndex >= state.words.length) updateActiveSave(current => ({ ...current, currentIndex: 0, updatedAt: new Date().toISOString() }));
+  if (save.currentIndex >= state.words.length) {
+    updateActiveSave(current => ({ ...current, currentIndex: 0, updatedAt: new Date().toISOString() }));
+  }
 }
-function getCurrentWord() { const save = getActiveSave(); return state.words[save?.currentIndex || 0] || state.words[0]; }
+function getCurrentWord() {
+  const save = getActiveSave();
+  return state.words[save?.currentIndex || 0] || state.words[0];
+}
 
 function switchScreen(screenId) {
-  [el.startScreen, el.gameScreen, el.libraryScreen, el.eventScreen].forEach(screen => screen.classList.remove("active"));
+  [el.startScreen, el.gameScreen, el.libraryScreen, el.characterScreen, el.eventScreen]
+    .forEach(screen => screen.classList.remove("active"));
   $(screenId).classList.add("active");
 }
-function setCharacterMood(mood) { const c = getCharacter(); el.characterImage.src = c.images[mood] || c.images.normal; }
+function setCharacterMood(mood) {
+  const character = getCharacter();
+  el.characterImage.src = character.images[mood] || character.images.normal;
+}
 function speak(type) {
-  const save = getActiveSave(); const c = getCharacter();
-  let pool = c.lines[type] || c.lines.start;
-  if (save && save.affection >= 70 && Math.random() < 0.45) pool = c.lines.highAffection;
+  const save = getActiveSave();
+  const character = getCharacter();
+  let pool = character.lines[type] || character.lines.start;
+  if (save && save.affection >= 70 && Math.random() < 0.45) pool = character.lines.highAffection;
   el.dialogueText.textContent = pickRandom(pool);
+}
+function setQuestionLocked(locked) {
+  state.questionLocked = locked;
+  const wordUnavailable = getCurrentWord()?.unavailable;
+  el.answerInput.disabled = locked || wordUnavailable || state.advancing;
+  el.submitBtn.disabled = locked || wordUnavailable || state.advancing;
+  el.showAnswerBtn.disabled = locked || wordUnavailable || state.advancing;
+  el.nextBtn.disabled = state.advancing || state.words.length === 0;
+  el.studyCard?.classList?.toggle("question-locked", locked);
+}
+function resetQuestionState(feedback = t("system.newWord")) {
+  if (state.advanceTimer) clearTimeout(state.advanceTimer);
+  state.advanceTimer = null;
+  state.advancing = false;
+  state.questionLocked = false;
+  el.answerInput.value = "";
+  el.feedbackText.textContent = feedback;
+  setQuestionLocked(false);
 }
 
 function renderStartScreen() {
   const saves = loadSaveSlots();
   if (!saves.length) {
-    el.saveSlotList.innerHTML = `<div class="save-slot"><div><strong>还没有存档</strong><span>点击“新建存档”开始。</span></div></div>`;
+    el.saveSlotList.innerHTML = `<div class="save-slot"><div><strong>${escapeHtml(t("ui.noSaves"))}</strong><span>${escapeHtml(t("ui.noSavesHint"))}</span></div></div>`;
     return;
   }
   el.saveSlotList.innerHTML = saves.map(save => `
     <article class="save-slot">
-      <div><strong>${escapeHtml(save.name)}</strong><span>好感度 ${save.affection} · 正确率 ${getCorrectRate(save)}% · 词库 ${save.selectedLibraries.length} 个</span></div>
+      <div><strong>${escapeHtml(save.name)}</strong><span>${escapeHtml(t("ui.affection"))} ${save.affection} · ${escapeHtml(t("ui.accuracy", { rate: getCorrectRate(save) }))} · ${escapeHtml(t("ui.libraries"))} ${(save.selectedLibraries || []).length}</span></div>
       <div class="save-actions">
-        <button type="button" data-action="load" data-save-id="${save.id}">进入</button>
-        <button class="secondary-btn" type="button" data-action="rename" data-save-id="${save.id}">改名</button>
-        <button class="danger-btn" type="button" data-action="delete" data-save-id="${save.id}">删除</button>
+        <button type="button" data-action="load" data-save-id="${save.id}">${escapeHtml(t("ui.enter"))}</button>
+        <button class="secondary-btn" type="button" data-action="rename" data-save-id="${save.id}">${escapeHtml(t("ui.rename"))}</button>
+        <button class="danger-btn" type="button" data-action="delete" data-save-id="${save.id}">${escapeHtml(t("ui.delete"))}</button>
       </div>
     </article>`).join("");
   el.saveSlotList.querySelectorAll("button").forEach(button => button.addEventListener("click", () => {
@@ -130,145 +347,447 @@ function renderStartScreen() {
 }
 
 function renderGame() {
-  const save = getActiveSave(); if (!save) return;
-  refreshWords(); const c = getCharacter(); const word = getCurrentWord(); const idx = save.currentIndex >= state.words.length ? 0 : save.currentIndex;
-  el.currentSaveName.textContent = `当前存档：${save.name}`;
-  el.characterName.textContent = c.displayName; el.speakerName.textContent = c.displayName;
-  el.affectionValue.textContent = save.affection; el.affectionLevel.textContent = getAffectionLevel(save.affection);
-  el.wordCounter.textContent = `Word ${idx + 1} / ${state.words.length}`; el.correctRate.textContent = `正确率 ${getCorrectRate(save)}%`;
-  el.wordText.textContent = word.word; el.wordHint.textContent = `${word.hint || "没有提示。"} · 来自：${word.libraryName}`;
+  const save = getActiveSave();
+  if (!save) return;
+  refreshWords();
+  const character = getCharacter();
+  const word = getCurrentWord();
+  const currentSave = getActiveSave();
+  const index = currentSave.currentIndex >= state.words.length ? 0 : currentSave.currentIndex;
+  el.currentSaveName.textContent = t("ui.currentSave", { name: currentSave.name });
+  el.characterName.textContent = character.displayName;
+  el.speakerName.textContent = character.displayName;
+  el.affectionValue.textContent = currentSave.affection;
+  el.affectionLevel.textContent = getAffectionLevel(currentSave.affection);
+  el.wordCounter.textContent = `Word ${index + 1} / ${state.words.length}`;
+  el.correctRate.textContent = t("ui.accuracy", { rate: getCorrectRate(currentSave) });
+  el.wordText.textContent = word.word;
+  el.wordHint.textContent = `${word.hint || t("ui.noHint")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
+  el.characterImage.alt = character.displayName;
+  setQuestionLocked(state.questionLocked);
 }
-function enterGame() { if (!getActiveSave()) { switchScreen("startScreen"); renderStartScreen(); return; } refreshWords(); switchScreen("gameScreen"); renderGame(); setCharacterMood("normal"); speak("start"); el.answerInput.focus(); }
+function enterGame() {
+  if (!getActiveSave()) {
+    switchScreen("startScreen");
+    renderStartScreen();
+    return;
+  }
+  refreshWords();
+  resetQuestionState(t("ui.ready"));
+  switchScreen("gameScreen");
+  renderGame();
+  setCharacterMood("normal");
+  speak("start");
+  el.answerInput.focus();
+}
 
 function checkAnswer() {
-  const word = getCurrentWord(); if (!word) return;
-  const answer = normalizeAnswer(el.answerInput.value); if (!answer) { el.feedbackText.textContent = "先输入答案再确认。"; return; }
+  const word = getCurrentWord();
+  if (!word || word.unavailable || state.advancing) return;
+  if (state.questionLocked) {
+    el.feedbackText.textContent = t("system.questionLocked");
+    return;
+  }
+  const answer = normalizeAnswer(el.answerInput.value);
+  if (!answer) {
+    el.feedbackText.textContent = t("system.emptyInput");
+    return;
+  }
   const correct = word.answer.map(normalizeAnswer).includes(answer);
-  updateActiveSave(save => ({ ...save, totalAnswered: save.totalAnswered + 1, correctAnswered: save.correctAnswered + (correct ? 1 : 0), affection: clamp(save.affection + (correct ? 3 : -2), 0, 100), updatedAt: new Date().toISOString() }));
-  if (correct) { el.feedbackText.textContent = "正确！好感度 +3"; setCharacterMood("happy"); speak("correct"); }
-  else { el.feedbackText.textContent = `错误。正确答案：${word.answer.join(" / ")}。好感度 -2`; setCharacterMood("sad"); speak("wrong"); }
+  updateActiveSave(save => ({
+    ...save,
+    totalAnswered: save.totalAnswered + 1,
+    correctAnswered: save.correctAnswered + (correct ? 1 : 0),
+    affection: clamp(save.affection + (correct ? 3 : -2), 0, 100),
+    updatedAt: new Date().toISOString()
+  }));
+  if (correct) {
+    state.advancing = true;
+    el.feedbackText.textContent = t("system.correct");
+    setCharacterMood("happy");
+    speak("correct");
+    renderGame();
+    setQuestionLocked(false);
+    state.advanceTimer = setTimeout(() => nextWord(), 850);
+    return;
+  }
+  el.feedbackText.textContent = t("system.wrong", { answer: word.answer.join(" / ") });
+  setCharacterMood("sad");
+  speak("wrong");
   renderGame();
 }
-function showAnswer() { const word = getCurrentWord(); if (!word) return; el.feedbackText.textContent = `答案：${word.answer.join(" / ")}`; setCharacterMood("shy"); speak("reveal"); }
+function showAnswer() {
+  const word = getCurrentWord();
+  if (!word || word.unavailable || state.questionLocked || state.advancing) return;
+  updateActiveSave(save => ({
+    ...save,
+    affection: clamp(save.affection - 2, 0, 100),
+    updatedAt: new Date().toISOString()
+  }));
+  state.questionLocked = true;
+  el.feedbackText.textContent = t("system.revealed", { answer: word.answer.join(" / ") });
+  setCharacterMood("shy");
+  speak("reveal");
+  renderGame();
+  setQuestionLocked(true);
+  el.nextBtn.focus();
+}
 function nextWord() {
-  updateActiveSave(save => ({ ...save, currentIndex: (save.currentIndex + 1) % state.words.length, updatedAt: new Date().toISOString() }));
-  el.answerInput.value = ""; el.feedbackText.textContent = "新的单词来了。"; setCharacterMood("normal"); renderGame(); el.answerInput.focus();
+  if (state.advanceTimer) clearTimeout(state.advanceTimer);
+  state.advanceTimer = null;
+  if (!state.words.length) return;
+  updateActiveSave(save => ({
+    ...save,
+    currentIndex: (save.currentIndex + 1) % state.words.length,
+    updatedAt: new Date().toISOString()
+  }));
+  resetQuestionState();
+  setCharacterMood("normal");
+  renderGame();
+  el.answerInput.focus();
 }
 
 function renderLibraryScreen() {
-  const save = getActiveSave(); if (!save) return;
-  const libraries = loadLibraries(); const selected = new Set(save.selectedLibraries || []);
+  const save = getActiveSave();
+  if (!save) return;
+  const libraries = loadLibraries();
+  const selected = new Set(save.selectedLibraries || []);
   el.librarySelectList.innerHTML = libraries.map(library => `
     <article class="library-card">
       <input type="checkbox" ${selected.has(library.id) ? "checked" : ""} data-library-id="${library.id}" />
-      <div><strong>${escapeHtml(library.name)}</strong><span>${library.readonly ? "默认词库" : "自定义词库"} · ${library.words.length} 个单词</span></div>
-      ${library.readonly ? "" : `<button class="danger-btn" type="button" data-delete-library-id="${library.id}">删除</button>`}
+      <div><strong>${escapeHtml(library.name)}</strong><span>${escapeHtml(t(library.readonly ? "ui.defaultLibrary" : "ui.customLibrary"))} · ${escapeHtml(t("ui.wordsCount", { count: library.words.length }))}</span></div>
+      ${library.readonly ? "" : `<button class="danger-btn" type="button" data-delete-library-id="${library.id}">${escapeHtml(t("ui.delete"))}</button>`}
     </article>`).join("");
-  el.librarySelectList.querySelectorAll("input[type='checkbox']").forEach(cb => cb.addEventListener("change", () => toggleLibraryForSave(cb.dataset.libraryId, cb.checked)));
-  el.librarySelectList.querySelectorAll("[data-delete-library-id]").forEach(btn => btn.addEventListener("click", () => deleteLibrary(btn.dataset.deleteLibraryId)));
+  el.librarySelectList.querySelectorAll("input[type='checkbox']").forEach(checkbox => {
+    checkbox.addEventListener("change", () => toggleLibraryForSave(checkbox.dataset.libraryId, checkbox.checked));
+  });
+  el.librarySelectList.querySelectorAll("[data-delete-library-id]").forEach(button => {
+    button.addEventListener("click", () => deleteLibrary(button.dataset.deleteLibraryId));
+  });
   el.wordLibrarySelect.innerHTML = libraries.map(library => `<option value="${library.id}">${escapeHtml(library.name)}</option>`).join("");
-  el.libraryHint.textContent = `当前启用 ${save.selectedLibraries.length} 个词库。启用多个词库后，学习时会把这些词库合并。`;
+  el.libraryHint.textContent = t("ui.enabledLibraryHint", { count: (save.selectedLibraries || []).length });
   renderLibraryWordList();
 }
 function toggleLibraryForSave(libraryId, checked) {
-  updateActiveSave(save => { const selected = new Set(save.selectedLibraries || []); checked ? selected.add(libraryId) : selected.delete(libraryId); return { ...save, selectedLibraries: [...selected], currentIndex: 0, updatedAt: new Date().toISOString() }; });
-  refreshWords(); renderLibraryScreen();
+  updateActiveSave(save => {
+    const selected = new Set(save.selectedLibraries || []);
+    checked ? selected.add(libraryId) : selected.delete(libraryId);
+    return { ...save, selectedLibraries: [...selected], currentIndex: 0, updatedAt: new Date().toISOString() };
+  });
+  refreshWords();
+  renderLibraryScreen();
 }
 function createLibrary() {
-  const name = el.newLibraryNameInput.value.trim(); if (!name) { alert("词库名字不能为空。"); return; }
-  const libraries = loadLibraries(); const library = { id: createId("library"), name, readonly: false, words: [] };
-  libraries.push(library); saveLibraries(libraries); el.newLibraryNameInput.value = "";
-  updateActiveSave(save => ({ ...save, selectedLibraries: [...new Set([...(save.selectedLibraries || []), library.id])], updatedAt: new Date().toISOString() }));
+  const name = el.newLibraryNameInput.value.trim();
+  if (!name) { alert(t("system.libraryNameRequired")); return; }
+  const libraries = loadLibraries();
+  const library = { id: createId("library"), name, readonly: false, words: [] };
+  libraries.push(library);
+  saveLibraries(libraries);
+  el.newLibraryNameInput.value = "";
+  updateActiveSave(save => ({
+    ...save,
+    selectedLibraries: [...new Set([...(save.selectedLibraries || []), library.id])],
+    updatedAt: new Date().toISOString()
+  }));
   renderLibraryScreen();
 }
 function deleteLibrary(libraryId) {
-  const libraries = loadLibraries(); const target = libraries.find(l => l.id === libraryId); if (!target || target.readonly) return;
-  if (!confirm(`确定删除词库「${target.name}」吗？这个词库里的单词也会删除。`)) return;
-  saveLibraries(libraries.filter(l => l.id !== libraryId));
-  saveSaveSlots(loadSaveSlots().map(save => ({ ...save, selectedLibraries: (save.selectedLibraries || []).filter(id => id !== libraryId) })));
-  refreshWords(); renderLibraryScreen();
+  const libraries = loadLibraries();
+  const target = libraries.find(library => library.id === libraryId);
+  if (!target || target.readonly || !confirm(t("system.deleteLibraryConfirm", { name: target.name }))) return;
+  saveLibraries(libraries.filter(library => library.id !== libraryId));
+  saveSaveSlots(loadSaveSlots().map(save => ({
+    ...save, selectedLibraries: (save.selectedLibraries || []).filter(id => id !== libraryId)
+  })));
+  refreshWords();
+  renderLibraryScreen();
 }
 function addWordToLibrary() {
-  const libraryId = el.wordLibrarySelect.value; const word = el.newWordInput.value.trim(); const answers = parseAnswerList(el.newAnswerInput.value); const hint = el.newHintInput.value.trim();
-  if (!word) { alert("单词不能为空。"); return; } if (!answers.length) { alert("中文意思不能为空。"); return; }
-  const libraries = loadLibraries(); const library = libraries.find(l => l.id === libraryId); if (!library) return;
-  if (library.words.some(item => item.word.toLowerCase() === word.toLowerCase())) { alert("这个单词已经在该词库里了。"); return; }
-  library.words.push({ word, answer: answers, hint: hint || "这是你自己添加的单词。" }); saveLibraries(libraries);
-  el.newWordInput.value = ""; el.newAnswerInput.value = ""; el.newHintInput.value = "";
-  refreshWords(); renderLibraryScreen();
+  const libraryId = el.wordLibrarySelect.value;
+  const word = el.newWordInput.value.trim();
+  const answers = parseAnswerList(el.newAnswerInput.value);
+  const hint = el.newHintInput.value.trim();
+  if (!word) { alert(t("system.wordRequired")); return; }
+  if (!answers.length) { alert(t("system.answerRequired")); return; }
+  const libraries = loadLibraries();
+  const library = libraries.find(item => item.id === libraryId);
+  if (!library) return;
+  if (library.words.some(item => item.word.toLowerCase() === word.toLowerCase())) {
+    alert(t("system.duplicateWord"));
+    return;
+  }
+  library.words.push({ word, answer: answers, hint: hint || t("system.customWordHint") });
+  saveLibraries(libraries);
+  el.newWordInput.value = "";
+  el.newAnswerInput.value = "";
+  el.newHintInput.value = "";
+  refreshWords();
+  renderLibraryScreen();
 }
 function renderLibraryWordList() {
   el.libraryWordList.innerHTML = loadLibraries().map(library => {
     const wordsHtml = library.words.length ? library.words.map((word, index) => `
-      <article class="word-row"><div><strong>${escapeHtml(word.word)}</strong><span>${escapeHtml(word.answer.join(" / "))} · ${escapeHtml(word.hint || "没有提示")}</span></div>${library.readonly ? "" : `<button class="danger-btn" type="button" data-library-id="${library.id}" data-word-index="${index}">删除</button>`}</article>`).join("") : `<p class="help-text">这个词库还没有单词。</p>`;
+      <article class="word-row">
+        <div><strong>${escapeHtml(word.word)}</strong><span>${escapeHtml(word.answer.join(" / "))} · ${escapeHtml(word.hint || t("ui.noHint"))}</span></div>
+        ${library.readonly ? "" : `<button class="danger-btn" type="button" data-library-id="${library.id}" data-word-index="${index}">${escapeHtml(t("ui.delete"))}</button>`}
+      </article>`).join("") : `<p class="help-text">${escapeHtml(t("ui.noWords"))}</p>`;
     return `<section class="library-block"><h3>${escapeHtml(library.name)}</h3><div class="word-list-inner">${wordsHtml}</div></section>`;
   }).join("");
-  el.libraryWordList.querySelectorAll("[data-word-index]").forEach(btn => btn.addEventListener("click", () => deleteWordFromLibrary(btn.dataset.libraryId, Number(btn.dataset.wordIndex))));
+  el.libraryWordList.querySelectorAll("[data-word-index]").forEach(button => {
+    button.addEventListener("click", () => deleteWordFromLibrary(button.dataset.libraryId, Number(button.dataset.wordIndex)));
+  });
 }
 function deleteWordFromLibrary(libraryId, wordIndex) {
-  const libraries = loadLibraries(); const library = libraries.find(l => l.id === libraryId); if (!library || library.readonly || !library.words[wordIndex]) return;
-  if (!confirm(`确定删除「${library.words[wordIndex].word}」吗？`)) return;
-  library.words.splice(wordIndex, 1); saveLibraries(libraries); refreshWords(); renderLibraryScreen();
+  const libraries = loadLibraries();
+  const library = libraries.find(item => item.id === libraryId);
+  if (!library || library.readonly || !library.words[wordIndex]) return;
+  if (!confirm(t("system.deleteWordConfirm", { word: library.words[wordIndex].word }))) return;
+  library.words.splice(wordIndex, 1);
+  saveLibraries(libraries);
+  refreshWords();
+  renderLibraryScreen();
+}
+
+function exportCustomLibraries() {
+  const customLibraries = loadLibraries().filter(library => !library.readonly);
+  if (!customLibraries.length) {
+    setLibraryTransferStatus(t("system.noCustomLibraries"), true);
+    return;
+  }
+  const payload = {
+    format: "sophia-vocab-libraries",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    libraries: customLibraries.map(library => ({
+      name: library.name,
+      words: library.words.map(word => ({
+        word: word.word,
+        answer: [...word.answer],
+        hint: word.hint || ""
+      }))
+    }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  link.href = URL.createObjectURL(blob);
+  link.download = `${sanitizeFilename(t("ui.libraryTitle"))}-${date}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  setLibraryTransferStatus(t("system.exportSuccess", { count: customLibraries.length }));
+}
+function importLibraryFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      const imported = parseLibraryFile(String(reader.result || ""), file.name);
+      const libraries = loadLibraries();
+      const newLibraries = [];
+      let wordCount = 0;
+      imported.forEach(candidate => {
+        const words = Array.isArray(candidate?.words)
+          ? candidate.words.map(normalizeImportedWord).filter(Boolean)
+          : [];
+        if (!words.length) return;
+        const library = {
+          id: createId("library"),
+          name: uniqueLibraryName(candidate.name || file.name.replace(/\.(json|js)$/i, ""), [...libraries, ...newLibraries]),
+          readonly: false,
+          words
+        };
+        newLibraries.push(library);
+        wordCount += words.length;
+      });
+      if (!newLibraries.length) {
+        setLibraryTransferStatus(t("system.importEmpty"), true);
+        return;
+      }
+      saveLibraries([...libraries, ...newLibraries]);
+      updateActiveSave(save => ({
+        ...save,
+        selectedLibraries: [...new Set([...(save.selectedLibraries || []), ...newLibraries.map(library => library.id)])],
+        updatedAt: new Date().toISOString()
+      }));
+      refreshWords();
+      renderLibraryScreen();
+      setLibraryTransferStatus(t("system.importSuccess", { libraries: newLibraries.length, words: wordCount }));
+    } catch {
+      setLibraryTransferStatus(t("system.importInvalid"), true);
+    } finally {
+      el.libraryFileInput.value = "";
+    }
+  });
+  reader.addEventListener("error", () => {
+    setLibraryTransferStatus(t("system.importFileReadError"), true);
+    el.libraryFileInput.value = "";
+  });
+  reader.readAsText(file, "UTF-8");
+}
+
+function renderCharacterScreen() {
+  const selected = getCharacter();
+  el.selectedCharacterImage.src = selected.images.normal;
+  el.selectedCharacterImage.alt = selected.displayName;
+  el.selectedCharacterName.textContent = selected.displayName;
+  el.selectedCharacterDescription.textContent = selected.description || "";
+  el.characterSelectList.innerHTML = Object.values(CHARACTERS).map(character => {
+    const isSelected = character.id === selected.id;
+    return `
+      <article class="character-option ${isSelected ? "selected" : ""}">
+        <img src="${character.images.normal}" alt="${escapeHtml(character.displayName)}" />
+        <div><strong>${escapeHtml(character.displayName)}</strong><span>${escapeHtml(character.description || "")}</span></div>
+        <button type="button" ${isSelected ? "disabled" : ""} data-character-id="${character.id}">
+          ${escapeHtml(t(isSelected ? "ui.selected" : "ui.select"))}
+        </button>
+      </article>`;
+  }).join("");
+  el.characterSelectList.querySelectorAll("[data-character-id]").forEach(button => {
+    button.addEventListener("click", () => selectCharacter(button.dataset.characterId));
+  });
+}
+function selectCharacter(characterId) {
+  if (!CHARACTERS[characterId]) return;
+  updateActiveSave(save => ({ ...save, characterId, updatedAt: new Date().toISOString() }));
+  renderCharacterScreen();
 }
 
 function renderEventScreen() {
-  const save = getActiveSave(); if (!save) return;
+  const save = getActiveSave();
+  if (!save) return;
   const doneSet = new Set(save.finishedEvents || []);
-  el.eventPlayPanel.classList.add("hidden"); el.eventListPanel.classList.remove("hidden");
+  el.eventPlayPanel.classList.add("hidden");
+  el.eventListPanel.classList.remove("hidden");
   el.eventList.innerHTML = AFFECTION_EVENTS.map(event => {
-    const unlocked = save.affection >= event.requiredAffection; const done = doneSet.has(event.id);
-    const status = done ? "已完成" : unlocked ? "可观看" : `需要好感度 ${event.requiredAffection}`;
-    return `<article class="event-card ${done ? "done" : unlocked ? "" : "locked"}"><strong>${escapeHtml(event.title)}</strong><span>${status} · 奖励好感度 +${event.rewardAffection}</span><div class="button-row">${unlocked ? `<button type="button" data-event-id="${event.id}">${done ? "重看" : "开始"}</button>` : `<button class="secondary-btn" type="button" disabled>未解锁</button>`}</div></article>`;
+    const unlocked = save.affection >= event.requiredAffection;
+    const done = doneSet.has(event.id);
+    const status = done ? t("ui.completed") : unlocked ? t("ui.available") : t("ui.requiresAffection", { value: event.requiredAffection });
+    return `
+      <article class="event-card ${done ? "done" : unlocked ? "" : "locked"}">
+        <strong>${escapeHtml(event.title)}</strong>
+        <span>${escapeHtml(status)} · ${escapeHtml(t("ui.eventReward", { value: event.rewardAffection }))}</span>
+        <div class="button-row">
+          ${unlocked
+            ? `<button type="button" data-event-id="${event.id}">${escapeHtml(t(done ? "ui.replay" : "ui.start"))}</button>`
+            : `<button class="secondary-btn" type="button" disabled>${escapeHtml(t("ui.locked"))}</button>`}
+        </div>
+      </article>`;
   }).join("");
-  el.eventList.querySelectorAll("[data-event-id]").forEach(btn => btn.addEventListener("click", () => startEvent(btn.dataset.eventId)));
+  el.eventList.querySelectorAll("[data-event-id]").forEach(button => {
+    button.addEventListener("click", () => startEvent(button.dataset.eventId));
+  });
 }
 function startEvent(eventId) {
-  const event = AFFECTION_EVENTS.find(e => e.id === eventId); if (!event) return;
-  state.activeEventId = eventId; state.eventLineIndex = 0;
-  el.eventListPanel.classList.add("hidden"); el.eventPlayPanel.classList.remove("hidden");
-  const c = CHARACTERS[event.character] || getCharacter(); el.eventCharacterImage.src = c.images[event.image] || c.images.normal;
+  const event = AFFECTION_EVENTS.find(item => item.id === eventId);
+  if (!event) return;
+  state.activeEventId = eventId;
+  state.eventLineIndex = 0;
+  el.eventListPanel.classList.add("hidden");
+  el.eventPlayPanel.classList.remove("hidden");
+  const character = CHARACTERS[event.character] || getCharacter();
+  el.eventCharacterImage.src = character.images[event.image] || character.images.normal;
   renderEventLine();
 }
 function renderEventLine() {
-  const event = AFFECTION_EVENTS.find(e => e.id === state.activeEventId); if (!event) return;
+  const event = AFFECTION_EVENTS.find(item => item.id === state.activeEventId);
+  if (!event) return;
   const line = event.lines[state.eventLineIndex];
-  el.eventSpeakerName.textContent = line.speaker; el.eventDialogueText.textContent = line.text;
+  el.eventSpeakerName.textContent = line.speaker;
+  el.eventDialogueText.textContent = line.text;
   el.eventProgressText.textContent = `${state.eventLineIndex + 1} / ${event.lines.length}`;
-  el.eventNextLineBtn.textContent = state.eventLineIndex >= event.lines.length - 1 ? "完成事件" : "继续";
+  el.eventNextLineBtn.textContent = t(state.eventLineIndex >= event.lines.length - 1 ? "ui.finishEvent" : "ui.continue");
 }
 function nextEventLine() {
-  const event = AFFECTION_EVENTS.find(e => e.id === state.activeEventId); if (!event) return;
-  if (state.eventLineIndex < event.lines.length - 1) { state.eventLineIndex++; renderEventLine(); return; }
+  const event = AFFECTION_EVENTS.find(item => item.id === state.activeEventId);
+  if (!event) return;
+  if (state.eventLineIndex < event.lines.length - 1) {
+    state.eventLineIndex++;
+    renderEventLine();
+    return;
+  }
   finishEvent(event);
 }
 function finishEvent(event) {
   updateActiveSave(save => {
-    const done = new Set(save.finishedEvents || []); const alreadyDone = done.has(event.id); done.add(event.id);
-    return { ...save, finishedEvents: [...done], affection: alreadyDone ? save.affection : clamp(save.affection + event.rewardAffection, 0, 100), updatedAt: new Date().toISOString() };
+    const done = new Set(save.finishedEvents || []);
+    const alreadyDone = done.has(event.id);
+    done.add(event.id);
+    return {
+      ...save,
+      finishedEvents: [...done],
+      affection: alreadyDone ? save.affection : clamp(save.affection + event.rewardAffection, 0, 100),
+      updatedAt: new Date().toISOString()
+    };
   });
-  state.activeEventId = null; state.eventLineIndex = 0; renderEventScreen();
+  state.activeEventId = null;
+  state.eventLineIndex = 0;
+  renderEventScreen();
 }
-function exitEventToList() { state.activeEventId = null; state.eventLineIndex = 0; renderEventScreen(); }
+function exitEventToList() {
+  state.activeEventId = null;
+  state.eventLineIndex = 0;
+  renderEventScreen();
+}
 
 function bindEvents() {
+  el.languageSelect.addEventListener("change", event => setLanguage(event.target.value));
+  el.gameLanguageSelect.addEventListener("change", event => setLanguage(event.target.value));
   el.createSaveBtn.addEventListener("click", createNewSave);
-  el.backToStartBtn.addEventListener("click", () => { switchScreen("startScreen"); renderStartScreen(); });
-  el.submitBtn.addEventListener("click", checkAnswer); el.showAnswerBtn.addEventListener("click", showAnswer); el.nextBtn.addEventListener("click", nextWord);
-  el.answerInput.addEventListener("keydown", e => { if (e.key === "Enter") checkAnswer(); });
-  el.characterImage.addEventListener("click", () => { const save = getActiveSave(); setCharacterMood(save && save.affection >= 45 ? "shy" : "normal"); speak("click"); });
+  el.backToStartBtn.addEventListener("click", () => {
+    if (state.advanceTimer) clearTimeout(state.advanceTimer);
+    switchScreen("startScreen");
+    renderStartScreen();
+  });
+  el.submitBtn.addEventListener("click", checkAnswer);
+  el.showAnswerBtn.addEventListener("click", showAnswer);
+  el.nextBtn.addEventListener("click", nextWord);
+  el.answerInput.addEventListener("keydown", event => { if (event.key === "Enter") checkAnswer(); });
+  el.characterImage.addEventListener("click", () => {
+    const save = getActiveSave();
+    setCharacterMood(save && save.affection >= 45 ? "shy" : "normal");
+    speak("click");
+  });
   el.libraryBtn.addEventListener("click", () => { switchScreen("libraryScreen"); renderLibraryScreen(); });
-  el.closeLibraryBtn.addEventListener("click", () => { refreshWords(); switchScreen("gameScreen"); renderGame(); });
-  el.createLibraryBtn.addEventListener("click", createLibrary); el.addWordBtn.addEventListener("click", addWordToLibrary);
-  [el.newLibraryNameInput, el.newWordInput, el.newAnswerInput, el.newHintInput].forEach(input => input.addEventListener("keydown", e => { if (e.key === "Enter") input === el.newLibraryNameInput ? createLibrary() : addWordToLibrary(); }));
+  el.closeLibraryBtn.addEventListener("click", () => {
+    refreshWords();
+    resetQuestionState(t("ui.ready"));
+    switchScreen("gameScreen");
+    renderGame();
+  });
+  el.characterBtn.addEventListener("click", () => { switchScreen("characterScreen"); renderCharacterScreen(); });
+  el.closeCharacterBtn.addEventListener("click", () => {
+    switchScreen("gameScreen");
+    renderGame();
+    setCharacterMood("normal");
+    speak("start");
+  });
+  el.createLibraryBtn.addEventListener("click", createLibrary);
+  el.addWordBtn.addEventListener("click", addWordToLibrary);
+  el.exportLibrariesBtn.addEventListener("click", exportCustomLibraries);
+  el.importLibrariesBtn.addEventListener("click", () => el.libraryFileInput.click());
+  el.libraryFileInput.addEventListener("change", event => importLibraryFile(event.target.files?.[0]));
+  [el.newLibraryNameInput, el.newWordInput, el.newAnswerInput, el.newHintInput].forEach(input => {
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") input === el.newLibraryNameInput ? createLibrary() : addWordToLibrary();
+    });
+  });
   el.eventBtn.addEventListener("click", () => { switchScreen("eventScreen"); renderEventScreen(); });
   el.closeEventBtn.addEventListener("click", () => { switchScreen("gameScreen"); renderGame(); });
-  el.eventNextLineBtn.addEventListener("click", nextEventLine); el.eventExitBtn.addEventListener("click", exitEventToList);
+  el.eventNextLineBtn.addEventListener("click", nextEventLine);
+  el.eventExitBtn.addEventListener("click", exitEventToList);
 }
 
 function init() {
   ensureVocabLibraries();
   const activeSaveId = localStorage.getItem(ACTIVE_SAVE_KEY);
   if (activeSaveId && loadSaveSlots().some(save => save.id === activeSaveId)) state.activeSaveId = activeSaveId;
-  bindEvents(); switchScreen("startScreen"); renderStartScreen();
+  bindEvents();
+  applyTranslations();
+  switchScreen("startScreen");
+  renderStartScreen();
 }
+
 init();

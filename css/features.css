@@ -1,0 +1,128 @@
+.word-box::before {
+  content: "単語";
+}
+
+input:disabled {
+  background: #eadfce;
+  color: #8c796c;
+  cursor: not-allowed;
+}
+
+.language-control {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brown-soft);
+  font-weight: 900;
+}
+
+.language-control select {
+  width: auto;
+  min-width: 125px;
+  padding: 8px 34px 8px 14px;
+  font-size: 14px;
+}
+
+.game-language-select {
+  width: auto;
+  min-width: 112px;
+  padding: 10px 32px 10px 14px;
+  font-size: 14px;
+}
+
+.transfer-status {
+  min-height: 26px;
+  margin: 14px 0 0;
+  color: #7e382b;
+  font-weight: 800;
+}
+
+.transfer-status.error {
+  color: #a43131;
+}
+
+.character-management-grid {
+  display: grid;
+  grid-template-columns: .8fr 1.2fr;
+  gap: 22px;
+}
+
+.selected-character-panel {
+  text-align: center;
+}
+
+.selected-character-panel img {
+  width: min(100%, 320px);
+  height: 390px;
+  object-fit: contain;
+  filter: drop-shadow(5px 8px 0 rgba(122, 74, 53, .2));
+}
+
+.character-select-list {
+  display: grid;
+  gap: 14px;
+}
+
+.character-option {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 3px solid rgba(122, 74, 53, .45);
+  border-radius: 20px;
+  background: rgba(255, 253, 247, .82);
+}
+
+.character-option.selected {
+  border-color: #ef6868;
+  background: #fff0d6;
+}
+
+.character-option img {
+  width: 100px;
+  height: 120px;
+  object-fit: contain;
+}
+
+.character-option strong {
+  display: block;
+  color: #7e382b;
+  font-size: 20px;
+}
+
+.character-option span {
+  display: block;
+  margin-top: 6px;
+  color: var(--brown-soft);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .character-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .language-control {
+    position: static;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+
+  .character-option {
+    grid-template-columns: 80px 1fr;
+  }
+
+  .character-option img {
+    width: 80px;
+    height: 100px;
+  }
+
+  .character-option button {
+    grid-column: span 2;
+  }
+}
