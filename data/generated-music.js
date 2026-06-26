@@ -6,9 +6,9 @@ const GENERATED_MUSIC_TRACKS = [
     "src": "./music/01.%E6%85%B5%E6%87%92%E7%9A%84%E9%98%B3%E5%85%89.flac"
   },
   {
-    "id": "music-02-mp3",
-    "title": "02.绘卷里的星球",
-    "file": "02.绘卷里的星球.mp3",
-    "src": "./music/02.%E7%BB%98%E5%8D%B7%E9%87%8C%E7%9A%84%E6%98%9F%E7%90%83.mp3"
+    "id": "music--mp3",
+    "title": "スローライフに憧れて",
+    "file": "スローライフに憧れて.mp3",
+    "src": "./music/%E3%82%B9%E3%83%AD%E3%83%BC%E3%83%A9%E3%82%A4%E3%83%95%E3%81%AB%E6%86%A7%E3%82%8C%E3%81%A6.mp3"
   }
 ];
