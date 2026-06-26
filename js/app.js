@@ -722,25 +722,32 @@ function checkAnswer() {
     return;
   }
   const correct = word.answer.map(normalizeAnswer).includes(answer);
+  const character = getCharacter();
+  const wasSophiaAngry = isAdvancedMode() && character.id === "sophia" && (getActiveSave()?.angryUntil || 0) > Date.now();
   const updatedSave = updateActiveSave(save => ({
     ...save,
     totalAnswered: save.totalAnswered + 1,
     correctAnswered: save.correctAnswered + (correct ? 1 : 0),
-    affection: clamp(save.affection + (correct ? 3 : -2), 0, 100),
+    affection: clamp(correct && wasSophiaAngry ? save.affection - 5 : save.affection + (correct ? 3 : -2), 0, 100),
     wrongStreak: correct ? 0 : (save.wrongStreak || 0) + 1,
+    angerPenaltyQuestions: correct && wasSophiaAngry ? 0 : save.angerPenaltyQuestions,
+    angryUntil: correct && wasSophiaAngry ? 0 : save.angryUntil,
     updatedAt: new Date().toISOString()
   }));
   if (correct) {
     state.advancing = true;
-    el.feedbackText.textContent = t("system.correct");
+    state.hintVisible = false;
+    state.hintCharged = false;
+    if (wasSophiaAngry) document.body.classList.remove("sophia-angry");
+    el.feedbackText.textContent = wasSophiaAngry ? t("system.sophiaCalmed") : t("system.correct");
     setCharacterMood("happy");
     speak("correct");
     renderGame();
     state.advanceTimer = setTimeout(() => nextWord(), 850);
     return;
   }
-  if (isAdvancedMode() && getCharacter().id === "sophia" && updatedSave.wrongStreak >= 4) {
-    triggerSophiaAnger("wrong-streak");
+  if (isAdvancedMode() && character.id === "sophia" && updatedSave.wrongStreak >= 4) {
+    triggerSophiaAnger();
     return;
   }
   el.feedbackText.textContent = t("system.wrong", { answer: word.answer.join(" / ") });
@@ -790,7 +797,7 @@ function nextWord() {
 
 function getAttitudeDescription(character, affection, angry) {
   if (character.id === "sophia") {
-    if (angry) return "正在明显生气：态度冷淡、不耐烦、回答很短，不安慰用户，不给好脸色；但仍不辱骂或威胁用户。";
+    if (angry) return "正在明显生气：态度冷淡、不耐烦、回答很短，不安慰用户，不给好脸色；但仍不使用攻击性语言或威胁用户。";
     if (affection >= 90) return "非常珍惜并依赖用户，坦率关心对方，带有害羞、细腻的少女感。";
     if (affection >= 70) return "充分信赖用户，会主动分享动漫、游戏、Cosplay和自己的感受。";
     if (affection >= 45) return "已经熟悉，变得更加开朗可爱，会主动鼓励和邀请用户交流兴趣。";
@@ -802,14 +809,6 @@ function getAttitudeDescription(character, affection, angry) {
   if (affection >= 45) return "已经熟悉，态度亲切而耐心。";
   if (affection >= 20) return "保持友好、专业并适度鼓励。";
   return "像初次见面的温柔老师，礼貌、清楚并专注于学习。";
-}
-function isProvocation(text) {
-  const normalized = text.toLowerCase().replace(/\s+/g, "");
-  return [
-    "笨蛋索菲亚", "索菲亚真蠢", "索菲亚很蠢", "讨厌索菲亚", "滚开", "废物",
-    "sophiaisstupid", "stupidsophia", "ihatesophia", "shutup,sophia",
-    "ソフィアはバカ", "ソフィア嫌い", "消えろ"
-  ].some(phrase => normalized.includes(phrase.replace(/\s+/g, "")));
 }
 function extractResponseText(data) {
   if (typeof data?.output_text === "string") return data.output_text;
@@ -830,20 +829,50 @@ function extractChatCompletionText(data) {
 }
 function parseSophiaJson(text) {
   const trimmed = String(text || "").trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fenced) {
-      try { return JSON.parse(fenced[1].trim()); } catch {}
+  const normalizeReply = value => {
+    if (value && typeof value === "object" && typeof value.reply === "string") {
+      return { reply: value.reply.trim() || t("system.aiCannotUnderstand") };
     }
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try { return JSON.parse(trimmed.slice(start, end + 1)); } catch {}
+    return null;
+  };
+  const parseStrictJson = value => {
+    try { return normalizeReply(JSON.parse(value)); } catch { return null; }
+  };
+  const parseLooseReply = value => {
+    const source = String(value || "").trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const quoted = source.match(/["']?reply["']?\s*:\s*(["'`])([\s\S]*?)\1\s*(?:[,}]\s*)?$/i);
+    if (quoted) return { reply: quoted[2].trim() || t("system.aiCannotUnderstand") };
+    const loose = source.match(/["']?reply["']?\s*:\s*([\s\S]*?)\s*}?$/i);
+    if (loose) {
+      return {
+        reply: loose[1]
+          .replace(/,\s*["']?\w+["']?\s*:\s*[\s\S]*$/i, "")
+          .replace(/^["'`]|["'`]$/g, "")
+          .trim() || t("system.aiCannotUnderstand")
+      };
     }
+    return null;
+  };
+  const direct = parseStrictJson(trimmed);
+  if (direct) return direct;
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    const parsed = parseStrictJson(fenced[1].trim()) || parseLooseReply(fenced[1].trim());
+    if (parsed) return parsed;
   }
-  return { reply: trimmed || t("system.aiCannotUnderstand"), provoked: false };
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const objectLike = trimmed.slice(start, end + 1);
+    const parsed = parseStrictJson(objectLike) || parseLooseReply(objectLike);
+    if (parsed) return parsed;
+  }
+  const looseDirect = parseLooseReply(trimmed);
+  if (looseDirect) return looseDirect;
+  return { reply: trimmed || t("system.aiCannotUnderstand") };
 }
 async function requestSophiaResponse(userText, testOnly = false) {
   const settings = loadAiSettings();
@@ -865,13 +894,13 @@ async function requestSophiaResponse(userText, testOnly = false) {
         save.angryUntil > Date.now()
           ? "当前生气状态优先于平时的温柔表现：态度冷淡、不耐烦，不安慰用户，只用很短的句子回应。"
           : "当前没有生气，按好感度自然表现温柔、拘谨或亲近。",
-        "如果用户明确挑衅或辱骂索菲亚，将 provoked 设为 true。"
+        "无论用户语气如何，都只按当前角色状态自然回应。"
       ]
     : [
         personalityMarkdown
           ? "优先遵循用户为当前角色选择的 Markdown 人设。"
           : "保持温柔老师型默认说话方式：耐心、简洁、清楚地帮助用户学习。",
-        "provoked 始终设为 false。"
+        "只需要按角色人设自然回应用户。"
       ];
   const instructions = testOnly
     ? "Reply with valid JSON matching the requested schema. Keep reply very short."
@@ -891,10 +920,9 @@ async function requestSophiaResponse(userText, testOnly = false) {
   const schema = {
     type: "object",
     properties: {
-      reply: { type: "string" },
-      provoked: { type: "boolean" }
+      reply: { type: "string" }
     },
-    required: ["reply", "provoked"],
+    required: ["reply"],
     additionalProperties: false
   };
   const headers = {
@@ -908,13 +936,13 @@ async function requestSophiaResponse(userText, testOnly = false) {
         model: settings.model,
         messages: testOnly
           ? [
-              { role: "system", content: "Return only JSON with reply and provoked." },
+              { role: "system", content: "Return only JSON with reply." },
               { role: "user", content: "Say hello briefly." }
             ]
           : [
               {
                 role: "system",
-                content: `${instructions}\n请只输出 JSON，不要使用 Markdown。格式：{"reply":"回复","provoked":false}`
+                content: `${instructions}\n请只输出 JSON，不要使用 Markdown。格式：{"reply":"回复"}`
               },
               ...history
             ],
@@ -965,11 +993,11 @@ function renderAiChat() {
   el.aiSendBtn.disabled = state.aiBusy;
   el.aiChatInput.disabled = state.aiBusy;
 }
-function triggerSophiaAnger(reason) {
-  const reply = reason === "provocation" ? t("system.provokedReply") : t("system.angryPower", { count: 3 });
+function triggerSophiaAnger() {
+  const reply = t("system.angryPower", { count: 3 });
   updateActiveSave(save => ({
     ...save,
-    affection: clamp(save.affection - (reason === "provocation" ? 8 : 5), 0, 100),
+    affection: save.affection,
     wrongStreak: 0,
     angerPenaltyQuestions: 3,
     angryUntil: Date.now() + 5 * 60 * 1000,
@@ -996,10 +1024,6 @@ async function sendAiChat() {
   }
   el.aiChatInput.value = "";
   appendChatMessage("user", text);
-  if (getCharacter().id === "sophia" && isProvocation(text)) {
-    triggerSophiaAnger("provocation");
-    return;
-  }
   const settings = loadAiSettings();
   if (!settings.apiKey) {
     appendChatMessage("assistant", t("system.aiCannotUnderstand"));
@@ -1016,7 +1040,6 @@ async function sendAiChat() {
     appendChatMessage("assistant", reply);
     el.dialogueText.textContent = reply;
     setCharacterMood(getActiveSave().affection >= 45 ? "happy" : "normal");
-    if (getCharacter().id === "sophia" && result.provoked) triggerSophiaAnger("provocation");
   } catch {
     appendChatMessage("assistant", t("system.aiCannotUnderstand"));
     el.dialogueText.textContent = t("system.aiCannotUnderstand");

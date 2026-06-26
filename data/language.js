@@ -151,6 +151,7 @@ const I18N = {
       emptyInput: "先输入答案再确认。",
       correct: "正确！好感度 +3，正在进入下一题……",
       wrong: "错误。正确答案：{answer}。好感度 -2",
+      sophiaCalmed: "答对了。索菲亚终于消气了，好感度 -5，正在进入下一题……",
       hintShown: "提示已显示，好感度 -1。本题仍然可以继续作答。",
       hintShownFree: "提示已显示。本题已经扣过好感度，不会重复扣除。",
       hintHidden: "提示已隐藏。好感度不变。",
@@ -186,7 +187,6 @@ const I18N = {
       chatCleared: "对话记录已清空。",
       angryHintHidden: "索菲亚生气了，把提示藏起来了。",
       angryPower: "索菲亚冷着脸收起了提示：题序已打乱，接下来 {count} 题不能看提示。",
-      provokedReply: "……够了。我现在不想听你说这些。把注意力放回学习。",
       noApiConfigured: "API 为空或不可用。"
       ,
       personalityLoaded: "已读取并保存人设文件“{name}”。",
@@ -358,6 +358,7 @@ const I18N = {
       emptyInput: "Please enter an answer first.",
       correct: "Correct! Affection +3. Moving to the next word…",
       wrong: "Incorrect. Correct answer: {answer}. Affection -2",
+      sophiaCalmed: "Correct. Sophia has calmed down. Affection -5. Moving to the next word…",
       hintShown: "Hint shown. Affection -1. You can still answer this question.",
       hintShownFree: "Hint shown. Affection was already charged for this question.",
       hintHidden: "Hint hidden. Affection unchanged.",
@@ -393,7 +394,6 @@ const I18N = {
       chatCleared: "Chat history cleared.",
       angryHintHidden: "Sophia is angry and hid the hint.",
       angryPower: "Sophia coldly put the hints away: the word order was shuffled, and hints are disabled for {count} questions.",
-      provokedReply: "…Enough. I don't want to hear that right now. Put your attention back on studying.",
       noApiConfigured: "The API is empty or unavailable."
       ,
       personalityLoaded: "Loaded and saved “{name}”.",
@@ -565,6 +565,7 @@ const I18N = {
       emptyInput: "先に答えを入力してください。",
       correct: "正解！好感度 +3。次の問題へ進みます……",
       wrong: "不正解。正解：{answer}。好感度 -2",
+      sophiaCalmed: "正解です。ソフィアは落ち着きました。好感度 -5。次の問題へ進みます……",
       hintShown: "ヒントを表示しました。好感度 -1。この問題にはまだ回答できます。",
       hintShownFree: "ヒントを表示しました。この問題ではすでに好感度を消費しています。",
       hintHidden: "ヒントを隠しました。好感度は変わりません。",
@@ -600,7 +601,6 @@ const I18N = {
       chatCleared: "会話履歴を消去しました。",
       angryHintHidden: "ソフィアが怒ってヒントを隠しました。",
       angryPower: "ソフィアは冷たい表情でヒントをしまいました。問題順を変更し、次の{count}問はヒントを使用できません。",
-      provokedReply: "……もういいです。今はそんな話を聞きたくありません。勉強に集中してください。",
       noApiConfigured: "APIが空か、利用できません。"
       ,
       personalityLoaded: "人格ファイル「{name}」を読み込み、保存しました。",

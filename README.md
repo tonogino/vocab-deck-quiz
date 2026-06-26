@@ -136,7 +136,6 @@ characters/<角色ID>/character.md
 触发条件：
 
 - 连续答错 4 道题
-- 在聊天中明确挑衅索菲亚
 
 触发后：
 
@@ -145,6 +144,7 @@ characters/<角色ID>/character.md
 - 题目顺序被打乱
 - 接下来 3 题隐藏提示
 - 接下来 3 题无法查看提示
+- 生气后只要答对 1 道题，界面会恢复原状，索菲亚也会消气，但好感度 `-5`
 
 这些惩罚不会删除词库、单词或存档。
 
@@ -510,9 +510,8 @@ Only Sophia has this mechanic.
 It triggers after:
 
 - Four consecutive wrong answers
-- Explicit provocation in chat
 
-The interface changes to a dark and cold theme, Sophia responds coldly, the word order is shuffled, and hints are disabled for the next three questions.
+The interface changes to a dark and cold theme, Sophia responds coldly, the word order is shuffled, and hints are disabled for the next three questions. Answering one question correctly while Sophia is angry restores the normal interface and calms her down, but costs 5 affection.
 
 Default Tutor, 能天使 (Exusiai), and user-created characters do not become angry.
 
