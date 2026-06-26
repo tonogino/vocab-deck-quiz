@@ -75,7 +75,7 @@ Node.js 用于：
 
 - 答对：好感度 `+3`
 - 答错：好感度 `-2`
-- 查看答案：好感度 `-2`，并锁定当前题目
+- 显示提示：每题第一次显示扣除好感度 `-1`，隐藏提示不扣好感度，显示提示后仍可继续答题
 
 ## 高级 AI 模式
 
@@ -144,7 +144,7 @@ characters/<角色ID>/character.md
 - 索菲亚说话明显冷淡、不耐烦
 - 题目顺序被打乱
 - 接下来 3 题隐藏提示
-- 接下来 3 题无法查看答案
+- 接下来 3 题无法查看提示
 
 这些惩罚不会删除词库、单词或存档。
 
@@ -512,7 +512,7 @@ It triggers after:
 - Four consecutive wrong answers
 - Explicit provocation in chat
 
-The interface changes to a dark and cold theme, Sophia responds coldly, the word order is shuffled, and hints and answer reveals are disabled for the next three questions.
+The interface changes to a dark and cold theme, Sophia responds coldly, the word order is shuffled, and hints are disabled for the next three questions.
 
 Default Tutor, 能天使 (Exusiai), and user-created characters do not become angry.
 

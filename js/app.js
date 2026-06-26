@@ -18,6 +18,8 @@ const state = {
   language: localStorage.getItem(LANGUAGE_KEY) || "zh",
   mode: localStorage.getItem(GAME_MODE_KEY) === "advanced" ? "advanced" : "normal",
   questionLocked: false,
+  hintVisible: false,
+  hintCharged: false,
   advancing: false,
   advanceTimer: null,
   aiBusy: false,
@@ -447,12 +449,7 @@ function setLanguage(language) {
   applyTranslations();
   renderCurrentScreen();
   renderMusicPlayer();
-  if (el.gameScreen.classList.contains("active")) {
-    const word = getCurrentWord();
-    el.feedbackText.textContent = state.questionLocked && word
-      ? t("system.revealed", { answer: word.answer.join(" / ") })
-      : t("ui.ready");
-  }
+  if (el.gameScreen.classList.contains("active")) el.feedbackText.textContent = t("ui.ready");
 }
 function setGameMode(mode) {
   if (!["normal", "advanced"].includes(mode)) return;
@@ -626,10 +623,11 @@ function setQuestionLocked(locked) {
   state.questionLocked = locked;
   const wordUnavailable = getCurrentWord()?.unavailable;
   const angerLocked = isAdvancedMode() && (getActiveSave()?.angerPenaltyQuestions || 0) > 0;
-  el.answerInput.disabled = locked || wordUnavailable || state.advancing;
-  el.submitBtn.disabled = locked || wordUnavailable || state.advancing;
-  el.showAnswerBtn.disabled = locked || wordUnavailable || state.advancing || angerLocked;
+  el.answerInput.disabled = wordUnavailable || state.advancing;
+  el.submitBtn.disabled = wordUnavailable || state.advancing;
+  el.showAnswerBtn.disabled = wordUnavailable || state.advancing || angerLocked;
   el.nextBtn.disabled = state.advancing || state.words.length === 0;
+  el.showAnswerBtn.textContent = state.hintVisible ? t("ui.hideHint") : t("ui.showHint");
   el.studyCard?.classList?.toggle("question-locked", locked);
 }
 function resetQuestionState(feedback = t("system.newWord")) {
@@ -637,6 +635,8 @@ function resetQuestionState(feedback = t("system.newWord")) {
   state.advanceTimer = null;
   state.advancing = false;
   state.questionLocked = false;
+  state.hintVisible = false;
+  state.hintCharged = false;
   el.answerInput.value = "";
   el.feedbackText.textContent = feedback;
   setQuestionLocked(false);
@@ -681,9 +681,13 @@ function renderGame() {
   el.correctRate.textContent = t("ui.accuracy", { rate: getCorrectRate(currentSave) });
   el.wordText.textContent = word.word;
   const angerPenalty = isAdvancedMode() && (currentSave.angerPenaltyQuestions || 0) > 0;
-  el.wordHint.textContent = angerPenalty
-    ? `${t("system.angryHintHidden")} · ${t("ui.fromLibrary", { name: word.libraryName })}`
-    : `${word.hint || t("ui.noHint")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
+  if (angerPenalty) {
+    el.wordHint.textContent = `${t("system.angryHintHidden")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
+  } else if (state.hintVisible) {
+    el.wordHint.textContent = `${word.hint || t("ui.noHint")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
+  } else {
+    el.wordHint.textContent = `${t("ui.hintHidden")} · ${t("ui.fromLibrary", { name: word.libraryName })}`;
+  }
   el.characterImage.alt = character.displayName;
   el.aiChatTitle.textContent = t("ui.chatWithCharacter", { name: character.displayName });
   el.aiChatInput.placeholder = t("ui.chatPlaceholderCharacter", { name: character.displayName });
@@ -712,10 +716,6 @@ function enterGame() {
 function checkAnswer() {
   const word = getCurrentWord();
   if (!word || word.unavailable || state.advancing) return;
-  if (state.questionLocked) {
-    el.feedbackText.textContent = t("system.questionLocked");
-    return;
-  }
   const answer = normalizeAnswer(el.answerInput.value);
   if (!answer) {
     el.feedbackText.textContent = t("system.emptyInput");
@@ -736,7 +736,6 @@ function checkAnswer() {
     setCharacterMood("happy");
     speak("correct");
     renderGame();
-    setQuestionLocked(false);
     state.advanceTimer = setTimeout(() => nextWord(), 850);
     return;
   }
@@ -749,21 +748,29 @@ function checkAnswer() {
   speak("wrong");
   renderGame();
 }
-function showAnswer() {
+function toggleHint() {
   const word = getCurrentWord();
-  if (!word || word.unavailable || state.questionLocked || state.advancing) return;
-  updateActiveSave(save => ({
-    ...save,
-    affection: clamp(save.affection - 2, 0, 100),
-    updatedAt: new Date().toISOString()
-  }));
-  state.questionLocked = true;
-  el.feedbackText.textContent = t("system.revealed", { answer: word.answer.join(" / ") });
-  setCharacterMood("shy");
-  speak("reveal");
+  if (!word || word.unavailable || state.advancing) return;
+  const angerLocked = isAdvancedMode() && (getActiveSave()?.angerPenaltyQuestions || 0) > 0;
+  if (angerLocked) {
+    el.feedbackText.textContent = t("system.angryHintHidden");
+    return;
+  }
+  state.hintVisible = !state.hintVisible;
+  if (state.hintVisible && !state.hintCharged) {
+    updateActiveSave(save => ({
+      ...save,
+      affection: clamp(save.affection - 1, 0, 100),
+      updatedAt: new Date().toISOString()
+    }));
+    state.hintCharged = true;
+    el.feedbackText.textContent = t("system.hintShown");
+    setCharacterMood("shy");
+    speak("reveal");
+  } else {
+    el.feedbackText.textContent = state.hintVisible ? t("system.hintShownFree") : t("system.hintHidden");
+  }
   renderGame();
-  setQuestionLocked(true);
-  el.nextBtn.focus();
 }
 function nextWord() {
   if (state.advanceTimer) clearTimeout(state.advanceTimer);
@@ -971,6 +978,8 @@ function triggerSophiaAnger(reason) {
     updatedAt: new Date().toISOString()
   }));
   state.questionLocked = false;
+  state.hintVisible = false;
+  state.hintCharged = false;
   setCharacterMood("sad");
   el.dialogueText.textContent = reply;
   el.feedbackText.textContent = t("system.angryPower", { count: 3 });
@@ -1527,7 +1536,7 @@ function bindEvents() {
     renderStartScreen();
   });
   el.submitBtn.addEventListener("click", checkAnswer);
-  el.showAnswerBtn.addEventListener("click", showAnswer);
+  el.showAnswerBtn.addEventListener("click", toggleHint);
   el.nextBtn.addEventListener("click", nextWord);
   el.answerInput.addEventListener("keydown", event => { if (event.key === "Enter") checkAnswer(); });
   el.characterImage.addEventListener("click", () => {
