@@ -3,9 +3,12 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const CHARACTERS_DIR = path.join(ROOT, "characters");
+const MUSIC_DIR = path.join(ROOT, "music");
 const GENERATED_FILE = path.join(ROOT, "data", "generated-characters.js");
+const GENERATED_MUSIC_FILE = path.join(ROOT, "data", "generated-music.js");
 const IMAGE_NAMES = ["normal", "happy", "sad", "shy"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
+const MUSIC_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".aac", ".flac"];
 
 function safeId(value) {
   const id = String(value || "")
@@ -98,6 +101,35 @@ function writeGeneratedCharacters() {
   return { characterCount: Object.keys(generatedCharacters).length, profileCount: Object.keys(profiles).length };
 }
 
+function scanMusic() {
+  const tracks = [];
+  if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  for (const entry of fs.readdirSync(MUSIC_DIR, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const extension = path.extname(entry.name).toLowerCase();
+    if (!MUSIC_EXTENSIONS.includes(extension)) continue;
+    const name = path.basename(entry.name, extension);
+    tracks.push({
+      id: safeId(`music-${entry.name}`),
+      title: name,
+      file: entry.name,
+      src: `./music/${encodeURIComponent(entry.name)}`
+    });
+  }
+  tracks.sort((a, b) => a.title.localeCompare(b.title, "zh-Hans-CN"));
+  return tracks;
+}
+
+function writeGeneratedMusic() {
+  const tracks = scanMusic();
+  const source = [
+    `const GENERATED_MUSIC_TRACKS = ${JSON.stringify(tracks, null, 2)};`,
+    ""
+  ].join("\n");
+  fs.writeFileSync(GENERATED_MUSIC_FILE, source, "utf8");
+  return { trackCount: tracks.length };
+}
+
 function dataUrlToBuffer(dataUrl) {
   const match = String(dataUrl || "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error("Invalid image data");
@@ -144,5 +176,6 @@ function createDiskCharacter(payload) {
 module.exports = {
   ROOT,
   createDiskCharacter,
-  writeGeneratedCharacters
+  writeGeneratedCharacters,
+  writeGeneratedMusic
 };

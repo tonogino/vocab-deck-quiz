@@ -2,7 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
-const { ROOT, createDiskCharacter, writeGeneratedCharacters } = require("./character-tools");
+const { ROOT, createDiskCharacter, writeGeneratedCharacters, writeGeneratedMusic } = require("./character-tools");
 
 const HOST = "127.0.0.1";
 const PORT = 8765;
@@ -17,7 +17,13 @@ const MIME = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".flac": "audio/flac"
 };
 
 function sendJson(response, status, body) {
@@ -67,6 +73,7 @@ function serveFile(request, response) {
 }
 
 writeGeneratedCharacters();
+writeGeneratedMusic();
 
 const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/api/status") {

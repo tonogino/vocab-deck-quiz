@@ -228,9 +228,25 @@ API 地址：https://api.openai.com/v1
 
 API Key 保存在当前浏览器的 `localStorage` 中。纯前端应用无法真正隐藏密钥，请使用独立且限额较低的 Key。
 
+## 背景音乐
+
+背景音乐文件放在项目根目录的：
+
+```text
+music/
+```
+
+支持常见音频格式：`.mp3`、`.ogg`、`.wav`、`.m4a`、`.aac`、`.flac`。
+使用 `启动游戏.bat` 启动时，脚本会自动扫描 `music` 文件夹并生成曲目清单。打开游戏后会自动选择第一首音乐并尝试播放。进入游戏后，右下角会出现背景音乐控制器，可以选择曲目、播放/暂停并调整音量。
+
+如果直接双击 `index.html`，浏览器不能自动读取整个 `music` 文件夹；此时可以点击右下角的“选择音乐”临时选择本地音频文件播放。临时选择的文件不会写入项目文件夹，下次打开需要重新选择。
+
+想编辑曲库时，直接向 `music/` 文件夹添加、删除或重命名音频文件，然后重新运行 `启动游戏.bat` 即可。
+
 ## 词库
 
 词库在普通模式和高级模式之间共享。
+内置默认词库包括：基础词库、大学英语四级、大学英语六级。
 
 支持：
 
@@ -372,6 +388,21 @@ characters/<ID>/
 
 基本人格は `character.md` に保存され、次回起動時に自動で読み込まれます。
 
+## BGM
+
+BGM ファイルはプロジェクト直下の次のフォルダに入れます。
+
+```text
+music/
+```
+
+対応形式は `.mp3`、`.ogg`、`.wav`、`.m4a`、`.aac`、`.flac` です。
+`启动游戏.bat` から起動すると、スクリプトが `music` フォルダを自動でスキャンし、曲一覧を生成します。ゲーム起動時に最初の曲を自動選択し、再生を試みます。ゲーム画面右下の BGM コントローラーで、曲の選択、再生/一時停止、音量調整ができます。
+
+`index.html` を直接開いた場合、ブラウザは `music` フォルダ全体を自動では読み取れません。その場合は右下の「音楽を選択」からローカル音声ファイルを一時的に選んで再生できます。一時選択したファイルはプロジェクトには保存されないため、次回は再選択が必要です。
+
+曲を編集したい場合は、`music/` フォルダ内の音声ファイルを追加、削除、リネームしてから `启动游戏.bat` を再実行してください。
+
 ## API
 
 上級モードの設定画面で API Key、API 形式、モデル、Base URL を設定します。
@@ -470,6 +501,7 @@ Each character has independent:
 - Special state
 
 Vocabulary-library selection remains shared inside the save.
+Built-in libraries include Basic Vocabulary, CET-4, and CET-6.
 
 ## Sophia's anger mechanic
 
@@ -507,6 +539,21 @@ characters/<character-id>/
 The basic profile is saved into `character.md` and loaded automatically on the next launch.
 
 Without the launcher service, created characters fall back to browser `localStorage`.
+
+## Background music
+
+Put background music files in:
+
+```text
+music/
+```
+
+Supported formats: `.mp3`, `.ogg`, `.wav`, `.m4a`, `.aac`, `.flac`.
+When the game is launched with `启动游戏.bat`, the launcher scans the `music` folder and generates the track list. On startup, the game selects the first track and attempts to play it automatically. In game, the bottom-right music controller lets you choose a track, play/pause it, and adjust volume.
+
+If you open `index.html` directly, the browser cannot automatically read the whole `music` folder. Use the bottom-right “Choose Music” button to temporarily select local audio files instead. Temporary files are not written into the project folder, so they must be selected again next time.
+
+To edit the music library, add, delete, or rename audio files inside `music/`, then run `启动游戏.bat` again.
 
 ## API configuration
 

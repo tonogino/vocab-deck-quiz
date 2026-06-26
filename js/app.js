@@ -8,6 +8,7 @@ const DATA_VERSION_KEY = "sophia_v2_data_version";
 const GAME_MODE_KEY = "sophia_v3_game_mode";
 const AI_SETTINGS_KEY = "sophia_v3_ai_settings";
 const CUSTOM_CHARACTERS_KEY = "sophia_v3_custom_characters";
+const MUSIC_SETTINGS_KEY = "sophia_v3_music_settings";
 
 const state = {
   activeSaveId: null,
@@ -19,7 +20,9 @@ const state = {
   questionLocked: false,
   advancing: false,
   advanceTimer: null,
-  aiBusy: false
+  aiBusy: false,
+  localMusicTracks: [],
+  musicPlaying: false
 };
 
 const $ = id => document.getElementById(id);
@@ -59,6 +62,9 @@ const el = {
   apiModelInput: $("apiModelInput"),
   apiBaseUrlInput: $("apiBaseUrlInput"), saveApiSettingsBtn: $("saveApiSettingsBtn"), testApiBtn: $("testApiBtn"),
   apiTestStatus: $("apiTestStatus"), clearChatBtn: $("clearChatBtn"),
+  musicPlayer: $("musicPlayer"), musicToggleBtn: $("musicToggleBtn"), musicTrackSelect: $("musicTrackSelect"),
+  musicVolumeInput: $("musicVolumeInput"), selectMusicFileBtn: $("selectMusicFileBtn"),
+  musicFileInput: $("musicFileInput"), musicStatusText: $("musicStatusText"), backgroundAudio: $("backgroundAudio"),
   customCharacterNameInput: $("customCharacterNameInput"),
   customCharacterProfileInput: $("customCharacterProfileInput"),
   customNormalImageInput: $("customNormalImageInput"), customHappyImageInput: $("customHappyImageInput"),
@@ -197,6 +203,102 @@ function loadAiSettings() {
 function saveAiSettings(settings) {
   localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
 }
+function loadMusicSettings() {
+  const settings = safeParse(localStorage.getItem(MUSIC_SETTINGS_KEY), {});
+  return {
+    trackId: typeof settings.trackId === "string" ? settings.trackId : "",
+    volume: Number.isFinite(Number(settings.volume)) ? clamp(Number(settings.volume), 0, 1) : 0.35
+  };
+}
+function saveMusicSettings(settings) {
+  localStorage.setItem(MUSIC_SETTINGS_KEY, JSON.stringify(settings));
+}
+function getMusicTracks() {
+  const generated = typeof GENERATED_MUSIC_TRACKS === "undefined" ? [] : GENERATED_MUSIC_TRACKS;
+  return [...generated, ...state.localMusicTracks];
+}
+function getGeneratedMusicTracks() {
+  return typeof GENERATED_MUSIC_TRACKS === "undefined" ? [] : GENERATED_MUSIC_TRACKS;
+}
+function getSelectedMusicTrack() {
+  return getMusicTracks().find(track => track.id === el.musicTrackSelect.value) || getMusicTracks()[0] || null;
+}
+function renderMusicPlayer() {
+  const tracks = getMusicTracks();
+  const settings = loadMusicSettings();
+  el.musicTrackSelect.innerHTML = tracks.length
+    ? tracks.map(track => `<option value="${escapeHtml(track.id)}">${escapeHtml(track.title)}</option>`).join("")
+    : `<option value="">${escapeHtml(t("ui.noMusicTracks"))}</option>`;
+  const selectedId = tracks.some(track => track.id === settings.trackId) ? settings.trackId : tracks[0]?.id || "";
+  el.musicTrackSelect.value = selectedId;
+  el.musicVolumeInput.value = String(Math.round(settings.volume * 100));
+  el.backgroundAudio.volume = settings.volume;
+  el.musicToggleBtn.textContent = state.musicPlaying ? t("ui.musicPause") : t("ui.musicPlay");
+  el.musicStatusText.textContent = tracks.length ? t("ui.musicFolderHint") : t("ui.noMusicHint");
+}
+function persistMusicControls() {
+  saveMusicSettings({
+    trackId: el.musicTrackSelect.value,
+    volume: clamp(Number(el.musicVolumeInput.value) / 100, 0, 1)
+  });
+}
+async function playSelectedMusic() {
+  const track = getSelectedMusicTrack();
+  if (!track) {
+    el.musicStatusText.textContent = t("system.noMusicSelected");
+    return;
+  }
+  if (el.backgroundAudio.src !== new URL(track.src, location.href).href) {
+    el.backgroundAudio.src = track.src;
+  }
+  el.backgroundAudio.volume = clamp(Number(el.musicVolumeInput.value) / 100, 0, 1);
+  persistMusicControls();
+  try {
+    await el.backgroundAudio.play();
+    state.musicPlaying = true;
+    el.musicToggleBtn.textContent = t("ui.musicPause");
+    el.musicStatusText.textContent = t("system.musicPlaying", { name: track.title });
+  } catch {
+    state.musicPlaying = false;
+    el.musicToggleBtn.textContent = t("ui.musicPlay");
+    el.musicStatusText.textContent = t("system.musicPlayFailed");
+  }
+}
+function autoPlayFirstGeneratedMusic() {
+  const firstTrack = getGeneratedMusicTracks()[0];
+  if (!firstTrack) return;
+  el.musicTrackSelect.value = firstTrack.id;
+  persistMusicControls();
+  playSelectedMusic();
+}
+function pauseMusic() {
+  el.backgroundAudio.pause();
+  state.musicPlaying = false;
+  el.musicToggleBtn.textContent = t("ui.musicPlay");
+}
+function toggleMusic() {
+  if (state.musicPlaying) pauseMusic();
+  else playSelectedMusic();
+}
+function addLocalMusicFiles(files) {
+  const audioFiles = [...(files || [])].filter(file => file.type.startsWith("audio/") || /\.(mp3|ogg|wav|m4a|aac|flac)$/i.test(file.name));
+  if (!audioFiles.length) {
+    el.musicStatusText.textContent = t("system.musicImportInvalid");
+    return;
+  }
+  state.localMusicTracks.forEach(track => {
+    if (track.temporaryUrl) URL.revokeObjectURL(track.src);
+  });
+  state.localMusicTracks = audioFiles.map((file, index) => ({
+    id: `local-music-${Date.now()}-${index}`,
+    title: file.name.replace(/\.[^.]+$/, ""),
+    src: URL.createObjectURL(file),
+    temporaryUrl: true
+  }));
+  saveMusicSettings({ ...loadMusicSettings(), trackId: state.localMusicTracks[0].id });
+  renderMusicPlayer();
+  el.musicStatusText.textContent = t("system.musicImported", { count: state.localMusicTracks.length });
+}
 function loadCustomCharacters() {
   const characters = safeParse(localStorage.getItem(CUSTOM_CHARACTERS_KEY), []);
   return Array.isArray(characters) ? characters : [];
@@ -237,12 +339,14 @@ function ensureVocabLibraries() {
   const existing = safeParse(localStorage.getItem(VOCAB_LIBRARIES_KEY), []);
   if (!Array.isArray(existing) || !existing.length) {
     localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify(DEFAULT_VOCAB_LIBRARIES));
+    localStorage.setItem(DATA_VERSION_KEY, "4");
     return;
   }
-  if (localStorage.getItem(DATA_VERSION_KEY) !== "3") {
-    const customLibraries = existing.filter(library => library.id !== "default_basic");
+  if (localStorage.getItem(DATA_VERSION_KEY) !== "4") {
+    const defaultIds = new Set(DEFAULT_VOCAB_LIBRARIES.map(library => library.id));
+    const customLibraries = existing.filter(library => !defaultIds.has(library.id));
     localStorage.setItem(VOCAB_LIBRARIES_KEY, JSON.stringify([...DEFAULT_VOCAB_LIBRARIES, ...customLibraries]));
-    localStorage.setItem(DATA_VERSION_KEY, "3");
+    localStorage.setItem(DATA_VERSION_KEY, "4");
   }
 }
 function loadLibraries() {
@@ -342,6 +446,7 @@ function setLanguage(language) {
   localStorage.setItem(LANGUAGE_KEY, language);
   applyTranslations();
   renderCurrentScreen();
+  renderMusicPlayer();
   if (el.gameScreen.classList.contains("active")) {
     const word = getCurrentWord();
     el.feedbackText.textContent = state.questionLocked && word
@@ -1484,6 +1589,20 @@ function bindEvents() {
       sendAiChat();
     }
   });
+  el.musicToggleBtn.addEventListener("click", toggleMusic);
+  el.musicTrackSelect.addEventListener("change", () => {
+    persistMusicControls();
+    if (state.musicPlaying) playSelectedMusic();
+  });
+  el.musicVolumeInput.addEventListener("input", () => {
+    el.backgroundAudio.volume = clamp(Number(el.musicVolumeInput.value) / 100, 0, 1);
+    persistMusicControls();
+  });
+  el.selectMusicFileBtn.addEventListener("click", () => el.musicFileInput.click());
+  el.musicFileInput.addEventListener("change", event => addLocalMusicFiles(event.target.files));
+  el.backgroundAudio.addEventListener("ended", () => {
+    if (!el.backgroundAudio.loop) state.musicPlaying = false;
+  });
 }
 
 function init() {
@@ -1492,6 +1611,8 @@ function init() {
   if (activeSaveId && loadSaveSlots().some(save => save.id === activeSaveId)) state.activeSaveId = activeSaveId;
   bindEvents();
   applyTranslations();
+  renderMusicPlayer();
+  autoPlayFirstGeneratedMusic();
   renderModePicker();
   switchScreen("startScreen");
   renderStartScreen();

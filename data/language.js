@@ -123,7 +123,15 @@ const I18N = {
       saveSettings: "保存设置",
       testApi: "测试 API",
       apiSecurityWarning: "安全提示：这是纯前端应用，保存在浏览器中的 API Key 无法真正隐藏。请使用限额较低的专用 Key。",
-      clearChat: "清空对话"
+      clearChat: "清空对话",
+      backgroundMusic: "背景音乐",
+      musicPlay: "播放",
+      musicPause: "暂停",
+      musicVolume: "音量",
+      chooseMusicFile: "选择音乐",
+      noMusicTracks: "没有可用音乐",
+      noMusicHint: "把音乐放进 music 文件夹后，用启动游戏.bat 重新打开。",
+      musicFolderHint: "音乐来自 music 文件夹；也可以临时选择本地文件。"
       ,
       personalityProfile: "AI 人设文件",
       personalityFallbackNotice: "如果不选择具体的 Markdown 人设，角色会使用温柔老师型默认人设。",
@@ -185,6 +193,11 @@ const I18N = {
       characterCreating: "正在处理立绘……",
       characterCreated: "角色“{name}”已创建并选中。",
       characterCreateFailed: "角色创建失败。图片可能过大或浏览器存储空间不足。",
+      noMusicSelected: "还没有可播放的背景音乐。",
+      musicPlaying: "正在播放：{name}",
+      musicPlayFailed: "浏览器阻止了播放，请再点一次播放按钮。",
+      musicImportInvalid: "没有找到可用的音频文件。",
+      musicImported: "已临时加入 {count} 首音乐。"
     }
   },
   en: {
@@ -311,7 +324,15 @@ const I18N = {
       saveSettings: "Save Settings",
       testApi: "Test API",
       apiSecurityWarning: "Security notice: this is a frontend-only app, so a browser-stored API key cannot be truly hidden. Use a dedicated key with a low spending limit.",
-      clearChat: "Clear Chat"
+      clearChat: "Clear Chat",
+      backgroundMusic: "Background Music",
+      musicPlay: "Play",
+      musicPause: "Pause",
+      musicVolume: "Volume",
+      chooseMusicFile: "Choose Music",
+      noMusicTracks: "No music available",
+      noMusicHint: "Put audio files in the music folder, then reopen with the launcher.",
+      musicFolderHint: "Music comes from the music folder. You can also choose temporary local files."
       ,
       personalityProfile: "AI Personality File",
       personalityFallbackNotice: "If no specific Markdown profile is selected, the character uses the gentle-teacher default personality.",
@@ -373,6 +394,11 @@ const I18N = {
       characterCreating: "Processing portraits…",
       characterCreated: "Created and selected “{name}”.",
       characterCreateFailed: "Character creation failed. The images may be too large or browser storage may be full.",
+      noMusicSelected: "No background music is available.",
+      musicPlaying: "Now playing: {name}",
+      musicPlayFailed: "The browser blocked playback. Press Play again.",
+      musicImportInvalid: "No usable audio files were found.",
+      musicImported: "Temporarily added {count} music tracks."
     }
   },
   ja: {
@@ -499,7 +525,15 @@ const I18N = {
       saveSettings: "設定を保存",
       testApi: "APIをテスト",
       apiSecurityWarning: "注意：このアプリはフロントエンドのみのため、ブラウザに保存したAPI Keyを完全に隠すことはできません。低い利用上限の専用Keyを使用してください。",
-      clearChat: "会話を消去"
+      clearChat: "会話を消去",
+      backgroundMusic: "BGM",
+      musicPlay: "再生",
+      musicPause: "一時停止",
+      musicVolume: "音量",
+      chooseMusicFile: "音楽を選択",
+      noMusicTracks: "利用できる音楽がありません",
+      noMusicHint: "音楽ファイルを music フォルダに入れて、起動ゲーム.bat から開き直してください。",
+      musicFolderHint: "音楽は music フォルダから読み込まれます。一時的にローカルファイルも選べます。"
       ,
       personalityProfile: "AI人格ファイル",
       personalityFallbackNotice: "Markdown人格を選択しない場合、キャラクターは優しい教師の既定人格を使用します。",
@@ -561,6 +595,11 @@ const I18N = {
       characterCreating: "立ち絵を処理しています……",
       characterCreated: "「{name}」を作成して選択しました。",
       characterCreateFailed: "作成に失敗しました。画像が大きすぎるか、ブラウザの保存容量が不足している可能性があります。",
+      noMusicSelected: "再生できるBGMがありません。",
+      musicPlaying: "再生中：{name}",
+      musicPlayFailed: "ブラウザが再生を止めました。もう一度再生を押してください。",
+      musicImportInvalid: "利用できる音声ファイルが見つかりません。",
+      musicImported: "{count}曲を一時的に追加しました。"
     }
   }
 };

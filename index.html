@@ -242,9 +242,27 @@
       </div>
     </section>
   </main>
+  <aside id="musicPlayer" class="music-player" aria-label="Background music player">
+    <div class="music-player-title">
+      <span data-i18n="ui.backgroundMusic">背景音乐</span>
+      <button id="musicToggleBtn" class="secondary-btn" type="button" data-i18n="ui.musicPlay">播放</button>
+    </div>
+    <select id="musicTrackSelect" aria-label="Background music"></select>
+    <div class="music-volume-row">
+      <label for="musicVolumeInput" data-i18n="ui.musicVolume">音量</label>
+      <input id="musicVolumeInput" type="range" min="0" max="100" value="35" />
+    </div>
+    <div class="music-player-actions">
+      <button id="selectMusicFileBtn" class="secondary-btn" type="button" data-i18n="ui.chooseMusicFile">选择音乐</button>
+      <input id="musicFileInput" class="hidden" type="file" accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/aac,audio/flac,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple />
+    </div>
+    <p id="musicStatusText" class="music-status" aria-live="polite"></p>
+    <audio id="backgroundAudio" loop preload="metadata"></audio>
+  </aside>
   <script src="./data/language.js"></script>
   <script src="./data/characters.js"></script>
   <script src="./data/generated-characters.js"></script>
+  <script src="./data/generated-music.js"></script>
   <script src="./data/vocab-libraries.js"></script>
   <script src="./data/events.js"></script>
   <script src="./js/app.js"></script>

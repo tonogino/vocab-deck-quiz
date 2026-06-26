@@ -8,6 +8,72 @@ input:disabled {
   cursor: not-allowed;
 }
 
+.music-player {
+  position: fixed;
+  z-index: 20;
+  right: 18px;
+  bottom: 18px;
+  width: min(310px, calc(100vw - 32px));
+  padding: 14px;
+  border: 3px solid var(--line);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, .94), rgba(255, 230, 209, .94));
+  box-shadow: 6px 6px 0 rgba(122, 74, 53, .2), 0 18px 36px rgba(91, 47, 25, .22);
+  backdrop-filter: blur(8px);
+}
+
+.music-player-title,
+.music-volume-row,
+.music-player-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.music-player-title {
+  justify-content: space-between;
+  margin-bottom: 9px;
+  color: #7e382b;
+  font-weight: 900;
+}
+
+.music-player button {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.music-player select {
+  width: 100%;
+  padding: 9px 34px 9px 12px;
+  font-size: 13px;
+}
+
+.music-volume-row {
+  margin-top: 9px;
+  color: var(--brown-soft);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.music-volume-row input[type="range"] {
+  flex: 1;
+  padding: 0;
+  box-shadow: none;
+}
+
+.music-player-actions {
+  margin-top: 9px;
+}
+
+.music-status {
+  min-height: 20px;
+  margin: 8px 0 0;
+  color: var(--brown-soft);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .language-control {
   position: absolute;
   z-index: 2;
@@ -183,6 +249,12 @@ body.sophia-angry .right-panel {
 body.sophia-angry .dialogue-box,
 body.sophia-angry .ai-chat-panel {
   background: linear-gradient(180deg, #202831, #11171d);
+}
+
+body.sophia-angry .music-player {
+  background: linear-gradient(180deg, rgba(32, 40, 49, .95), rgba(17, 23, 29, .95));
+  border-color: #64737e;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .38), 0 18px 36px rgba(0, 0, 0, .32);
 }
 
 body.sophia-angry {
